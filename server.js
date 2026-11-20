@@ -152,6 +152,9 @@ game.config = Object.assign({ maxPlayers: 200, prize: 1000000, rollSeconds: 6, m
 // Đang trong lượt quay số (chưa chốt kết quả)
 let rolling = false;
 
+// Vé dùng để XEM TRƯỚC trên trang quản lý (tách riêng, không tính vào 200 vé)
+let previewTickets = [];
+
 function persistState() { writeJSON(STATE_FILE, game); }
 function appendHistory() {
   const history = readJSON(HISTORY_FILE, []);
@@ -199,6 +202,34 @@ function serializeTicket(ticket) {
     code: ticket.code, name: ticket.name, locked: ticket.locked,
     rows: serializeRows(ticket), drawn: game.drawn,
     config: game.config,
+  };
+}
+function findTickets(playerId) { return game.tickets.filter((t) => t.owner === playerId); }
+
+// Gói dữ liệu tất cả vé của một người chơi (hỗ trợ mua nhiều vé)
+function multiPayload(playerId, activeCode) {
+  const owned = findTickets(playerId);
+  const active = owned.find((t) => t.code === activeCode) || owned[0];
+  return {
+    code: active ? active.code : '',
+    name: active ? active.name : '',
+    locked: active ? active.locked : false,
+    rows: active ? serializeRows(active) : [],
+    activeCode: active ? active.code : '',
+    tickets: owned.map((t) => ({
+      code: t.code, name: t.name, locked: t.locked, won: t.won,
+      rows: serializeRows(t),
+    })),
+    drawn: game.drawn,
+    config: game.config,
+  };
+}
+function previewPayload(pv) {
+  return {
+    code: pv.code, name: pv.name, locked: pv.locked,
+    rows: serializeRows(pv), activeCode: pv.code,
+    tickets: [{ code: pv.code, name: pv.name, locked: pv.locked, won: pv.won, rows: serializeRows(pv) }],
+    drawn: game.drawn, config: game.config,
   };
 }
 function emitHostState() {
@@ -320,12 +351,49 @@ function doDraw(manualNumber) {
       });
     });
 
+    // Vé xem trước: đánh dấu & báo kinh/đợi nhưng KHÔNG tính vào giải/danh sách
+    previewTickets.forEach((ticket) => {
+      ticket.rows.forEach((row, ri) => {
+        rowNumbers(row).forEach((c) => { if (c.value === num) c.matched = true; });
+        const unmatched = rowNumbers(row).filter((c) => !c.matched);
+        row.complete = unmatched.length === 0;
+
+        if (row.complete && !row.awarded) {
+          row.awarded = true;
+          ticket.won = true;
+          ticket.previewKinhCount = (ticket.previewKinhCount || 0) + 1;
+          row.kinhPosition = ticket.previewKinhCount;
+          if (ticket.socketId) {
+            io.to(ticket.socketId).emit('kinh:notify', {
+              winner: {
+                playerId: ticket.playerId, code: 'PREVIEW', name: 'XEM TRƯỚC',
+                row: ri + 1, position: row.kinhPosition, time: Date.now(),
+              },
+              prize: game.config.prize, prizePerWinner: game.config.prize, totalWinners: 1,
+            });
+          }
+        } else if (!row.complete && unmatched.length === 1 && !row.waitingNotified) {
+          row.waitingNotified = true;
+          if (ticket.socketId) {
+            io.to(ticket.socketId).emit('row:waiting', {
+              row: ri + 1, missing: unmatched[0].value, name: 'XEM TRƯỚC',
+            });
+          }
+        }
+      });
+      if (ticket.socketId) {
+        io.to(ticket.socketId).emit('ticket:update', previewPayload(ticket));
+      }
+    });
+
     persistState();
     io.emit('draw:result', { number: num, drawn: game.drawn });
 
+    const updatedSockets = new Set();
     game.tickets.forEach((ticket) => {
-      if (ticket.socketId) {
-        io.to(ticket.socketId).emit('ticket:update', { rows: serializeRows(ticket), drawn: game.drawn });
+      if (ticket.socketId && !updatedSockets.has(ticket.socketId)) {
+        updatedSockets.add(ticket.socketId);
+        io.to(ticket.socketId).emit('ticket:update', multiPayload(ticket.owner));
       }
     });
     newWaiting.forEach(({ ticket, row, missing }) => {
@@ -369,6 +437,7 @@ io.on('connection', (socket) => {
     const prize = Math.max(0, Number(cfg.prize) || 0);
     const rollSeconds = Math.max(2, Math.min(15, Number(cfg.rollSeconds) || game.config.rollSeconds || 6));
     rolling = false;
+    previewTickets = [];
     io.emit('draw:cancel');
     game = freshGame({ maxPlayers, prize, rollSeconds });
     persistState();
@@ -379,6 +448,7 @@ io.on('connection', (socket) => {
 
   socket.on('game:new', () => {
     rolling = false;
+    previewTickets = [];
     io.emit('draw:cancel');
     game = freshGame(game.config);
     persistState();
@@ -398,31 +468,64 @@ io.on('connection', (socket) => {
   socket.on('player:join', (payload) => {
     const playerId = payload && payload.playerId;
     if (!playerId) return;
-    let ticket = game.tickets.find((t) => t.owner === playerId);
-    if (!ticket) {
-      // Nếu đã chốt vé nhưng tải lại trang, giữ nguyên vé cũ
-      ticket = game.tickets.find((t) => t.locked && t.owner === playerId);
-      if (!ticket) {
-        ticket = pickFreeTicket();
-        if (!ticket) {
-          socket.emit('player:rejected', { message: `Đã đủ ${game.config.maxPlayers} vé. Vui lòng chờ ván mới!` });
-          return;
-        }
-        giveTicket(ticket, playerId, payload.name, socket.id);
+
+    // Chế độ XEM TRƯỚC: vé riêng, không tính vào kho 200 vé / danh sách chốt
+    if (payload.preview) {
+      let pv = previewTickets.find((t) => t.playerId === playerId);
+      if (!pv) {
+        const rows = buildGrid(game.drawn);
+        rows.forEach((r) => { if (r.complete) r.awarded = true; });
+        pv = {
+          playerId, code: 'PREVIEW', name: 'XEM TRƯỚC', locked: false,
+          socketId: socket.id, rows, won: false, previewKinhCount: 0,
+        };
+        previewTickets.push(pv);
       }
+      pv.socketId = socket.id;
+      socket.emit('ticket:assigned', previewPayload(pv));
+      return;
     }
-    ticket.socketId = socket.id;
-    if (payload.name) ticket.name = String(payload.name).slice(0, 20);
+
+    // Số vé người chơi muốn mua (tối đa 4 vé/người)
+    const want = Math.max(1, Math.min(4, Number(payload.ticketCount) || 1));
+    let owned = findTickets(playerId);
+    if (!owned.length) {
+      const free = game.tickets.filter((t) => !t.owner);
+      if (free.length < want) {
+        socket.emit('player:rejected', {
+          message: `Chỉ còn ${free.length} vé trống, không đủ ${want} vé. Vui lòng giảm số vé!`,
+        });
+        return;
+      }
+      shuffle(free);
+      owned = free.slice(0, want);
+      owned.forEach((t) => giveTicket(t, playerId, payload.name, socket.id));
+    }
+    owned.forEach((t) => {
+      t.socketId = socket.id;
+      if (payload.name) t.name = String(payload.name).slice(0, 20);
+    });
     persistState();
-    socket.emit('ticket:assigned', serializeTicket(ticket));
+    socket.emit('ticket:assigned', multiPayload(playerId));
     emitHostState();
   });
 
   // Đổi sang một vé random khác (chưa ai giữ)
   socket.on('ticket:change', (payload) => {
     const playerId = payload && payload.playerId;
-    const cur = game.tickets.find((t) => t.owner === playerId);
-    if (!cur) return;
+    const pv = previewTickets.find((t) => t.playerId === playerId);
+    if (pv) {
+      pv.rows = buildGrid(game.drawn);
+      pv.rows.forEach((r) => { if (r.complete) r.awarded = true; });
+      pv.won = false;
+      pv.previewKinhCount = 0;
+      socket.emit('ticket:assigned', previewPayload(pv));
+      socket.emit('ticket:changed', { code: pv.code });
+      return;
+    }
+    const owned = findTickets(playerId);
+    if (!owned.length) return;
+    const cur = owned.find((t) => t.code === payload.code) || owned[0];
     if (cur.locked) {
       socket.emit('ticket:error', { message: 'Bạn đã chốt vé, không thể đổi nữa!' });
       return;
@@ -436,18 +539,22 @@ io.on('connection', (socket) => {
     releaseTicket(cur);
     giveTicket(next, playerId, name, socket.id);
     persistState();
-    socket.emit('ticket:assigned', serializeTicket(next));
+    socket.emit('ticket:assigned', multiPayload(playerId, next.code));
     socket.emit('ticket:changed', { code: next.code });
     emitHostState();
   });
 
   // Chốt vé -> xuất hiện trong danh sách người chơi trên màn hình chính
   socket.on('ticket:lock', (payload) => {
-    const ticket = game.tickets.find((t) => t.owner === (payload && payload.playerId));
-    if (!ticket) return;
-    ticket.locked = true;
+    if (previewTickets.some((t) => t.playerId === payload.playerId)) {
+      socket.emit('ticket:locked', { code: 'PREVIEW', name: 'XEM TRƯỚC' });
+      return;
+    }
+    const owned = findTickets(payload && payload.playerId);
+    if (!owned.length) return;
+    owned.forEach((t) => { t.locked = true; });
     persistState();
-    socket.emit('ticket:locked', { code: ticket.code, name: ticket.name });
+    socket.emit('ticket:locked', { code: owned[0].code, name: owned[0].name, codes: owned.map((t) => t.code) });
     io.emit('host:players', { players: lockedPlayers() });
     emitHostState();
   });
@@ -462,16 +569,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('player:rename', (payload) => {
-    const ticket = game.tickets.find((t) => t.owner === (payload && payload.playerId));
-    if (!ticket || !payload.name) return;
-    ticket.name = String(payload.name).slice(0, 20);
-    game.winners.forEach((w) => { if (w.playerId === payload.playerId) w.name = ticket.name; });
+    const owned = findTickets(payload && payload.playerId);
+    if (!owned.length || !payload.name) return;
+    const name = String(payload.name).slice(0, 20);
+    owned.forEach((t) => { t.name = name; });
+    game.winners.forEach((w) => { if (w.playerId === payload.playerId) w.name = name; });
     persistState();
     emitHostState();
   });
 
   socket.on('disconnect', () => {
     game.tickets.forEach((t) => { if (t.socketId === socket.id) t.socketId = null; });
+    previewTickets.forEach((t) => { if (t.socketId === socket.id) t.socketId = null; });
   });
 });
 

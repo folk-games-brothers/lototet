@@ -13,7 +13,7 @@ Trang chơi lô tô trên **LAN**: màn hình chính (host) + trang người ch�
 - Tiền giải **chia đều** cho tất cả các hàng kinh (`Tổng giải / số hàng kinh`).
 
 ## Luồng tham gia
-1. Quét QR → nhập tên → nhận **vé random** trong kho **200 vé** (mã vé `V001`…`V200`).
+1. Quét QR → nhập tên → chọn **Số vé muốn mua (1–4)** → nhận các **vé random** trong kho **200 vé** (mã `V001`…`V200`). Ô **SỐ VỪA XỔ** nằm ngay đầu trang để dễ nhìn. Mua nhiều vé thì dùng các tab **Vé 1 / Vé 2…** để chuyển đổi; nút Đổi vé đổi vé đang chọn, nút Chốt vé chốt tất cả.
 2. Nhấn **🔄 ĐỔI VÉ** để đổi sang bộ vé khác (có thể đổi nhiều lần, trước khi chốt).
 3. Ứng ý thì nhấn **🔒 CHỐT VÉ** → tên và mã vé hiện ngay trong **danh sách người chơi đã chốt** trên màn hình chính. Sau khi chốt **không đổi vé được nữa**.
 4. Host bấm **XỔ SỐ NGAY**: số quay nhanh rồi **chậm dần ~6 giây** mới dừng lại (có thể chỉnh **Thời gian quay** 2–15s ở màn hình chính, đổi không cần tạo ván mới). Trong lúc quay nút bị khóa, bấm liên tục sẽ bị từ chối. Kết quả (đánh dấu vé, báo kinh) chỉ áp dụng sau khi số dừng.
@@ -56,7 +56,9 @@ Loto/
 ```
 
 ## Màn hình TV (chiếu riêng)
-- Trang quản lý: `http://localhost:3000` — bấm nút **📺 Mở màn hình TV** để mở tab mới.
+- Trang quản lý: `http://localhost:3000`
+  - **📱 Xem trước ĐT**: mở khung điện thoại ngay trên trang quản lý để kiểm tra vé, đổi/chốt vé, banner đợi số và KINH. Vé xem trước là vé riêng, **không tính vào 200 vé** và **không hiện trong danh sách người chốt**.
+  - **📺 Màn hình TV**: mở tab màn hình chiếu.
 - Màn hình TV: `http://<IP-máy>:3000/tv.html` — đem đi toàn màn hình trên TV/máy chiếu (nhấn F11).
 - TV hiện **số xổ cực to**, hiệu ứng quay đồng bộ với trang quản lý, lịch sử các số gần đây, và **banner người KINH ngay trong từng lượt** (tên, hàng, vị trí, tiền thưởng).
 - Cả hai trang nhận cùng dữ liệu realtime từ server; không cần cấu hình thêm.
