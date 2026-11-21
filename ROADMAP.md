@@ -55,3 +55,12 @@
 - [ ] Quản lý tiền người chơi: hiển thị số tiền thắng và số tiền nợ; có field nợ; admin có thể xóa nợ; khi tăng tiền thì tăng nợ nếu checkbox 'đang chơi nợ' được bật
 
 - [ ] Khôi phục vé theo tên + mã vé, có kiểm tra trùng tên khi tham gia
+
+
+## Clarifications
+- Mid-game join: existing player resumes play; new player goes to waiting queue.
+- Game end: admin sets winner threshold or finishes manually; default behavior can be configured.
+- Money: system auto-calculates from tickets and bet; admin adjustments are overrides with a reason.
+- Leaderboard: sort by total winnings, then by name A-Z.
+- FIFO animation is visual only and must not affect game logic.
+- Rules popup is admin-toggleable and must not block realtime updates.
