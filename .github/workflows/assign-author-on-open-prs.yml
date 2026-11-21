@@ -1,0 +1,12 @@
+name: assign-author-on-open-prs
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign-author:
+    uses: folk-games-brothers/.github/.github/workflows/assign-author-on-open-prs.yml@master
