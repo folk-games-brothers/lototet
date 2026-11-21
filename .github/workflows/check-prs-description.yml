@@ -1,4 +1,4 @@
-name: pr-template-check-prs
+name: check-prs-description
 
 on:
   pull_request:
@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   check-pr-template:
-    uses: folk-games-brothers/.github/.github/workflows/pr-template-check-prs.yml@master
+    uses: folk-games-brothers/.github/.github/workflows/check-prs-description.yml@master
