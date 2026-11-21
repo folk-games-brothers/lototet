@@ -62,7 +62,8 @@
 - [ ] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
 
 
-- [ ] Admin có quyền kick user hiện tại để xoá dữ liệu về họ### Realtime / Audio
+- [ ] Admin có quyền kick user hiện tại để xoá dữ liệu về họ
+- [ ] Không thể bắt đầu xổ số khi chưa có người chơi chốt vé### Realtime / Audio
 - [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
 - [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
 - [ ] Sau khi đọc một số, nếu phát hiện người gần KINH thì la to tên người sắp KINH; nếu có nhiều người thì đọc tuần tự với ngắt nhịp rõ ràng
