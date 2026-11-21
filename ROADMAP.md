@@ -36,12 +36,12 @@
 - Dữ liệu lưu JSON local
 
 ## Planned Enhancements (User Requested)
-- [ ] Move QR code to TV screen (top-right corner) for players to scan
-- [ ] Players joining mid-game go to waiting queue and see "waiting for next round"
-- [ ] Add bot announcer reading drawn numbers in playful Vietnamese style, adaptable to trending songs
-- [ ] Prevent duplicate player names by auto-naming based on current player count; admin can rename players and adjust money (paid/debt)
-- [ ] TV left panel shows participants and their progress (remaining horizontal/vertical rows)
-- [ ] Money auto-calculated on admin page based on selected tickets and bet per ticket
+- [ ] Chuyển mã QR sang màn hình TV (góc phải) để người chơi quét
+- [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
+- [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
+- [ ] Tránh tên người chơi trùng bằng tự đặt tên theo số người hiện tại; admin có thể đổi tên và điều chỉnh tiền (đã trả/nợ)
+- [ ] Panel bên trái TV hiển thị người tham gia và tiến độ (còn thiếu bao nhiêu hàng ngang/dọc)
+- [ ] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
 - [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 - [ ] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt trong lúc chơi
 - [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; khi quét QR, kiểm tra người chơi đã tham gia chưa; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
@@ -60,9 +60,9 @@
 
 
 ## Clarifications
-- Mid-game join: existing player resumes play; new player goes to waiting queue.
-- Game end: admin sets winner threshold or finishes manually; default behavior can be configured.
-- Money: system auto-calculates from tickets and bet; admin adjustments are overrides with a reason.
-- Leaderboard: sort by total winnings, then by name A-Z.
-- FIFO animation is visual only and must not affect game logic.
-- Rules popup is admin-toggleable; it may cover the screen while enabled, and admin can turn it off if it obstructs gameplay.
+- Tham gia giữa chừng: người chơi cũ tiếp tục chơi; người mới vào hàng chờ.
+- Kết thúc ván: admin đặt ngưỡng người thắng hoặc kết thúc thủ công; có thể cấu hình mặc định.
+- Tiền: hệ thống tự tính từ số vé và mức cược; admin điều chỉnh là ghi đè có lý do.
+- Bảng xếp hạng: sắp xếp theo tổng tiền thắng, sau đó theo tên A-Z.
+- Hiệu ứng FIFO chỉ là hiển thị và không được ảnh hưởng logic game.
+- Popup luật chơi do admin bật/tắt; có thể che màn hình khi bật, admin tắt nếu gây cản trở.
