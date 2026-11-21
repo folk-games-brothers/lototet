@@ -715,7 +715,7 @@ io.on('connection', (socket) => {
 });
 
 /* ---------------- Static ---------------- */
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.get('/api/state', (req, res) => {
   res.json({
     serverTime: Date.now(), joinUrl: buildJoinUrl(),
