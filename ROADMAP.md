@@ -63,7 +63,8 @@
 
 
 - [ ] Admin có quyền kick user hiện tại để xoá dữ liệu về họ
-- [ ] Không thể bắt đầu xổ số khi chưa có người chơi chốt vé### Realtime / Audio
+- [ ] Không thể bắt đầu xổ số khi chưa có người chơi chốt vé
+- [ ] Trang admin cần đăng nhập; mật khẩu hardcode trong source nhưng đã mã hoá; hỗ trợ đổi mật khẩu sau khi đăng nhập### Realtime / Audio
 - [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
 - [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
 - [ ] Sau khi đọc một số, nếu phát hiện người gần KINH thì la to tên người sắp KINH; nếu có nhiều người thì đọc tuần tự với ngắt nhịp rõ ràng
