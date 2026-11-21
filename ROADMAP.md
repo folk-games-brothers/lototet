@@ -52,7 +52,8 @@
 - [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...)
 - [ ] Kết thúc trận đấu: hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng
 
-### Admin & Money
+
+- [ ] Trang admin hiển thị link để mở màn hình TV### Admin & Money
 - [ ] Admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống ghi nhận tiền nợ dựa trên số vé và mức cược
 - [ ] Admin có quyền chỉnh tiền người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
 - [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
