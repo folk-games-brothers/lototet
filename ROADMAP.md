@@ -44,5 +44,6 @@
 - [ ] Money auto-calculated on admin page based on selected tickets and bet per ticket
 - [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 - [ ] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt trong lúc chơi
+- [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; khi quét QR, kiểm tra người chơi đã tham gia chưa; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
