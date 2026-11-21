@@ -9,5 +9,5 @@ permissions:
   pull-requests: read
 
 jobs:
-  check-pr-template:
+  check-prs-description:
     uses: folk-games-brothers/.github/.github/workflows/check-prs-description.yml@master
