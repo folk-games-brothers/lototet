@@ -100,6 +100,14 @@
 - [ ] Unit/integration tests
 - [ ] E2E test cho flow chơi
 
+## Planned Enhancements (User Requested)
+- [ ] Move QR code to TV screen (top-right corner) for players to scan
+- [ ] Players joining mid-game go to waiting queue and see "waiting for next round"
+- [ ] Add bot announcer reading drawn numbers in playful Vietnamese style, adaptable to trending songs
+- [ ] Prevent duplicate player names by auto-naming based on current player count; admin can rename players and adjust money (paid/debt)
+- [ ] TV left panel shows participants and their progress (remaining horizontal/vertical rows)
+- [ ] Money auto-calculated on admin page based on selected tickets and bet per ticket
+
 ## Priority Suggestion
 ### Phase 1 - Ổn định
 - Persistent storage
