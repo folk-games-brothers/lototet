@@ -42,5 +42,6 @@
 - [ ] Prevent duplicate player names by auto-naming based on current player count; admin can rename players and adjust money (paid/debt)
 - [ ] TV left panel shows participants and their progress (remaining horizontal/vertical rows)
 - [ ] Money auto-calculated on admin page based on selected tickets and bet per ticket
+- [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
