@@ -53,6 +53,7 @@
 - [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...) để dễ nhìn
 - [ ] Kết thúc trận đấu dựa trên số lượng người KINH; khi kết thúc hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng để leo top
 - [ ] Quản lý tiền người chơi: hiển thị số tiền thắng và số tiền nợ; có field nợ; admin có thể xóa nợ; khi tăng tiền thì tăng nợ nếu checkbox 'đang chơi nợ' được bật
+- [ ] Top trên TV hiển thị người gần KINH; top tiền thắng ẩn cho đến khi admin bấm show, có thể che toàn màn hình/background
 
 - [ ] Khôi phục vé theo tên + mã vé, có kiểm tra trùng tên khi tham gia
 
