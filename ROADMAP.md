@@ -48,5 +48,6 @@
 - [ ] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé; admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống luôn ghi nhận tiền nợ dựa trên số vé và mức cược do admin đặt
 - [ ] Admin có quyền chỉnh tiền của người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
 - [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
+- [ ] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
