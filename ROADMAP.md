@@ -63,4 +63,4 @@
 - Money: system auto-calculates from tickets and bet; admin adjustments are overrides with a reason.
 - Leaderboard: sort by total winnings, then by name A-Z.
 - FIFO animation is visual only and must not affect game logic.
-- Rules popup is admin-toggleable and must not block realtime updates.
+- Rules popup is admin-toggleable; it may cover the screen while enabled, and admin can turn it off if it obstructs gameplay.
