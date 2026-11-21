@@ -51,5 +51,6 @@
 - [ ] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
 - [ ] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới; số vào trước thì xử lý trước, số vào sau xử lý sau (FIFO)
 - [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...) để dễ nhìn
+- [ ] Kết thúc trận đấu dựa trên số lượng người KINH; khi kết thúc hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng để leo top
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
