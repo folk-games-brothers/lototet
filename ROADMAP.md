@@ -68,6 +68,21 @@
 ### Leaderboard
 - [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 
+
+## Implementation Areas
+### Frontend
+- QR on TV, rules popup, leaderboard UI, near-KINH display, number drop animation
+- Player join flow, name input, ticket selection, wallet display
+- TV layout: participants panel, top money/winners display
+- Bot announcer UI toggle
+
+### Backend
+- Mid-game waiting queue, rejoin by name, ticket recovery
+- Money calculation, debt tracking, admin adjustments
+- Game end condition based on winner count
+- Realtime events for players, TV, host
+- State persistence and history
+
 ## Clarifications
 - Tham gia giữa chừng: người chơi cũ tiếp tục chơi; người mới vào hàng chờ.
 - Kết thúc ván: admin đặt ngưỡng người thắng hoặc kết thúc thủ công; có thể cấu hình mặc định.
