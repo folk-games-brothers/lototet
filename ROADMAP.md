@@ -36,28 +36,37 @@
 - Dữ liệu lưu JSON local
 
 ## Planned Enhancements (User Requested)
+
+### Player UX
+- [ ] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé
+- [ ] Tránh tên người chơi trùng bằng tự đặt tên theo số người hiện tại
+- [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
+- [ ] Khôi phục vé theo tên + mã vé, có kiểm tra trùng tên khi tham gia
+- [ ] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới (FIFO)
+
+### TV / Host UX
 - [ ] Chuyển mã QR sang màn hình TV (góc phải) để người chơi quét
-- [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
-- [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
-- [ ] Tránh tên người chơi trùng bằng tự đặt tên theo số người hiện tại; admin có thể đổi tên và điều chỉnh tiền (đã trả/nợ)
 - [ ] Panel bên trái TV hiển thị người tham gia và tiến độ (còn thiếu bao nhiêu hàng ngang/dọc)
-- [ ] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
-- [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
-- [ ] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt trong lúc chơi
-- [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; khi quét QR, kiểm tra người chơi đã tham gia chưa; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
-- [ ] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé; admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống luôn ghi nhận tiền nợ dựa trên số vé và mức cược do admin đặt
-- [ ] Admin có quyền chỉnh tiền của người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
+- [ ] Top trên TV hiển thị người gần KINH; top tiền thắng ẩn cho đến khi admin bấm show
+- [ ] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt
+- [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...)
+- [ ] Kết thúc trận đấu: hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng
+
+### Admin & Money
+- [ ] Admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống ghi nhận tiền nợ dựa trên số vé và mức cược
+- [ ] Admin có quyền chỉnh tiền người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
 - [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
 - [ ] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
-- [ ] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới; số vào trước thì xử lý trước, số vào sau xử lý sau (FIFO)
-- [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...) để dễ nhìn
-- [ ] Kết thúc trận đấu dựa trên số lượng người KINH; khi kết thúc hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng để leo top
 - [ ] Quản lý tiền người chơi: hiển thị số tiền thắng và số tiền nợ; có field nợ; admin có thể xóa nợ; khi tăng tiền thì tăng nợ nếu checkbox 'đang chơi nợ' được bật
-- [ ] Top trên TV hiển thị người gần KINH; top tiền thắng ẩn cho đến khi admin bấm show, có thể che toàn màn hình/background
+- [ ] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
+
+### Realtime / Audio
+- [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
+- [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
 - [ ] Sau khi đọc một số, nếu phát hiện người gần KINH thì la to tên người sắp KINH; nếu có nhiều người thì đọc tuần tự với ngắt nhịp rõ ràng
 
-- [ ] Khôi phục vé theo tên + mã vé, có kiểm tra trùng tên khi tham gia
-
+### Leaderboard
+- [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 
 ## Clarifications
 - Tham gia giữa chừng: người chơi cũ tiếp tục chơi; người mới vào hàng chờ.
