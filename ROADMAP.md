@@ -47,5 +47,6 @@
 - [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; khi quét QR, kiểm tra người chơi đã tham gia chưa; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
 - [ ] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé; admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống luôn ghi nhận tiền nợ dựa trên số vé và mức cược do admin đặt
 - [ ] Admin có quyền chỉnh tiền của người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
+- [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
