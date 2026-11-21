@@ -49,5 +49,6 @@
 - [ ] Admin có quyền chỉnh tiền của người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
 - [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
 - [ ] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
+- [ ] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới; số vào trước thì xử lý trước, số vào sau xử lý sau (FIFO)
 
 - [ ] Ticket recovery by name + ticket code, with duplicate-name prevention when joining
