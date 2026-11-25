@@ -242,6 +242,15 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   row('Tổng giải / tiền thu', `${state.prize}đ / ${expectedPrize}đ`);
   row('Mã vé trùng / chủ sở hữu > 3 vé', `${duplicateCodes} / ${overOwned}`);
   row('Số lượt xổ', drawResults);
+  console.log('__IO__:' + JSON.stringify({
+    input: { players, url, betPerTicket, maxTicketsPerPlayer: 3 },
+    output: {
+      success: successes, failures, errorRate: Number(errorRate.toFixed(2)),
+      lockLatency: lockStats, drawLatency: drawStats,
+      lockedTickets: lockedTickets.length, prize: state.prize, expectedPrize,
+      duplicateCodes, overOwned, drawResults, consistent,
+    },
+  }));
   console.log(consistent
     ? '\n✅ ĐẠT: tải ổn định, dữ liệu nhất quán cuối ván.'
     : '\n❌ KHÔNG ĐẠT: kiểm tra lại các chỉ số trên.');

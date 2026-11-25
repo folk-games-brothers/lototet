@@ -53,6 +53,7 @@ function buildItems() {
     });
   }
   items.push({ label: 'Load Test - giả lập phòng đông (nhập số người chơi ảo)', kind: 'load' });
+  items.push({ label: '🌐 Mở Test Dashboard Web UI (http://localhost:3001)', kind: 'ui' });
   items.push({ label: 'Thoát', kind: 'exit' });
   return items;
 }
@@ -216,6 +217,13 @@ async function main() {
     } else if (choice.kind === 'test') {
       console.log(`\n  ${C.cyan}$ node --test ${path.join('test', choice.file)}${C.reset}`);
       result = await runNode(['--test', path.join('test', choice.file)], BACKEND_DIR);
+    } else if (choice.kind === 'ui') {
+      console.log(`\n  ${C.cyan}$ node backend/test/ui-server.js${C.reset}`);
+      console.log(`  ${C.dim}Nhấn Ctrl+C trong UI server để quay lại menu.${C.reset}`);
+      result = await runNode([path.join(TEST_DIR, 'ui-server.js')], ROOT_DIR);
+      console.log(`\n  ${C.green}✓ Test Dashboard đã đóng${C.reset} · ${result.ms}ms`);
+      await waitEnter();
+      continue;
     } else {
       await runLoadTest();
       await waitEnter();

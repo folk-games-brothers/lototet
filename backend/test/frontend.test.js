@@ -169,6 +169,49 @@ test('admin control panel: main actions + single next-round button, 4 TV/audio t
   assert.doesNotMatch(host, /setBtnLabel\([^)]*['"][🎲🤖📜🏆🔊🎤⏹]/);
 });
 
+test('test dashboard: SSE runner, structured IO logs, Web UI scripts and dashboard markup', () => {
+  const uiServer = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'ui-server.js'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(frontend, 'test-dashboard.html'), 'utf8');
+  const cli = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'cli.js'), 'utf8');
+  const ioHelper = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'test-io.js'), 'utf8');
+  const serverTest = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'server.test.js'), 'utf8');
+  const concurrencyTest = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'concurrency.test.js'), 'utf8');
+  const loadTest = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'load-test.js'), 'utf8');
+  const rootPkg = JSON.parse(fs.readFileSync(path.join(frontend, '..', 'package.json'), 'utf8'));
+  const backendPkg = JSON.parse(fs.readFileSync(path.join(frontend, '..', 'backend', 'package.json'), 'utf8'));
+
+  assert.match(uiServer, /require\('node:test'\)/);
+  assert.match(uiServer, /const \{ run \} = require\('node:test'\)/);
+  assert.match(uiServer, /text\/event-stream/);
+  for (const type of ['test:start', 'test:pass', 'test:fail', 'test:diagnostic']) {
+    assert.ok(uiServer.includes(type));
+  }
+  assert.match(uiServer, /suite === 'load'/);
+  assert.match(uiServer, /load:metrics/);
+  assert.match(uiServer, /tempServer\.kill\('SIGTERM'\)/);
+  assert.match(uiServer, /EADDRINUSE/);
+
+  assert.match(ioHelper, /__IO__:/);
+  assert.match(serverTest, /logTestIO\(t,/);
+  assert.match(concurrencyTest, /logTestIO\(t,/);
+  assert.match(loadTest, /console\.log\('__IO__:'/);
+
+  assert.match(dashboard, /Chạy Tất Cả/);
+  assert.match(dashboard, /Chạy Load Test/);
+  assert.match(dashboard, /Chỉ hiện Pass/);
+  assert.match(dashboard, /Chỉ hiện Fail/);
+  assert.match(dashboard, /EventSource/);
+  assert.match(dashboard, /INPUT \(Dữ liệu đầu vào\)/);
+  assert.match(dashboard, /OUTPUT \(Kết quả thực tế\)/);
+  assert.match(dashboard, /Expected vs Actual/);
+  assert.match(dashboard, /p95/);
+
+  assert.equal(rootPkg.scripts['test:ui'], 'node backend/test/ui-server.js');
+  assert.equal(backendPkg.scripts['test:ui'], 'node test/ui-server.js');
+  assert.match(cli, /kind: 'ui'/);
+  assert.match(cli, /ui-server\.js/);
+});
+
 test('startup table, --open flag, Windows launchers and interactive test CLI', () => {
   const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
   const cli = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'cli.js'), 'utf8');

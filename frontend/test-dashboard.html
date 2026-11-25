@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loto Tet - Test Dashboard</title>
+<style>
+  :root {
+    --bg:#1b0b0b; --panel:#2a1212; --panel2:#351818; --line:rgba(255,212,94,.25);
+    --gold:#ffd54f; --cream:#fff3cf; --muted:#d9b98a;
+    --pass:#4ade80; --fail:#ff6b6b; --run:#60a5fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(circle at top,#3b1210,#1b0b0b 70%);color:var(--cream);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px;color:var(--gold)}
+  .sub{color:var(--muted);font-size:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  button,select,input{font:inherit;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);padding:8px 12px;cursor:pointer}
+  button:hover{filter:brightness(1.15)}
+  button.primary{background:linear-gradient(135deg,#b81c1c,#7a1010);border-color:var(--gold);font-weight:700}
+  input{width:80px;cursor:text}
+  .wrap{padding:20px 24px;max-width:1400px;margin:0 auto}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .card .value{font-size:30px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .card.pass .value{color:var(--pass)} .card.fail .value{color:var(--fail)} .card.time .value{color:var(--gold)}
+  .progress-wrap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:16px}
+  .progress-track{height:10px;background:#4a2424;border-radius:999px;overflow:hidden;margin-top:8px}
+  .progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--pass),var(--gold));transition:width .25s ease}
+  .progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .logbox{background:#120707;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px;
+    max-height:220px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;color:#ffd9a0;display:none}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .metric b{display:block;font-size:22px;color:var(--gold);margin-top:4px}
+  .metric.ok b{color:var(--pass)} .metric.bad b{color:var(--fail)}
+  .group{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .group-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--panel2);cursor:pointer}
+  .group-head b{color:var(--gold)} .group-head small{color:var(--muted);margin-left:auto}
+  .badge{font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;border:1px solid currentColor}
+  .badge.PASS{color:var(--pass)} .badge.FAIL{color:var(--fail)} .badge.RUNNING{color:var(--run)}
+  .rows{padding:8px 12px 12px}
+  .row{border-top:1px dashed var(--line);padding:8px 4px}
+  .row:first-child{border-top:none}
+  .row-head{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
+  .row-head .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row-head .dur{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .detail{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .io{background:#120707;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
+  .io h4{margin:0 0 6px;color:var(--gold);font-size:12px;letter-spacing:.05em}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.45 ui-monospace,Menlo,monospace;color:#ffe9bd}
+  .error{margin-top:10px;background:rgba(255,107,107,.12);border:1px solid var(--fail);border-radius:10px;padding:10px}
+  .error b{color:var(--fail)}
+  .hidden{display:none!important}
+  @media(max-width:760px){.detail{grid-template-columns:1fr}.toolbar{margin-left:0}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🧪 LÔ TÔ TẾT - TEST DASHBOARD</h1><div class="sub">Chạy test và xem chi tiết Input / Output theo thời gian thực</div></div>
+  <div class="toolbar">
+    <button class="primary" data-suite="all">Chạy Tất Cả</button>
+    <button data-suite="server">Server</button>
+    <button data-suite="frontend">Frontend</button>
+    <button data-suite="audio">Audio</button>
+    <button data-suite="concurrency">Concurrency</button>
+    <input id="users" type="number" min="1" max="250" value="50" aria-label="Số người chơi ảo" />
+    <button id="btnLoad" class="primary">Chạy Load Test</button>
+    <select id="filter">
+      <option value="all">Tất cả</option>
+      <option value="pass">Chỉ hiện Pass</option>
+      <option value="fail">Chỉ hiện Fail</option>
+    </select>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="cards">
+    <div class="card"><div class="label">Tổng số test</div><div class="value" id="sumTotal">0</div></div>
+    <div class="card pass"><div class="label">Pass</div><div class="value" id="sumPass">0</div></div>
+    <div class="card fail"><div class="label">Fail</div><div class="value" id="sumFail">0</div></div>
+    <div class="card time"><div class="label">Tổng thời gian</div><div class="value" id="sumTime">0 ms</div></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label"><span id="progressText">Sẵn sàng</span><span id="progressPct">0%</span></div>
+    <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
+  </div>
+  <div class="logbox" id="logbox"></div>
+  <div class="metrics hidden" id="metrics"></div>
+  <div id="results"></div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const state = { groups: new Map(), expanded: new Set(), filter: 'all', running: false, source: null, currentSuite: '' };
+  const SUITE_LABEL = { all: 'Tất cả', server: 'Server', frontend: 'Frontend', audio: 'Audio', concurrency: 'Concurrency', load: 'Load Test' };
+
+  function fmtMs(ms) { return Math.round(Number(ms) || 0) + ' ms'; }
+  function pretty(value) {
+    if (value === undefined) return '(không có)';
+    if (typeof value === 'string') { try { return JSON.stringify(JSON.parse(value), null, 2); } catch (e) { return value; } }
+    try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
+  }
+  function parseIO(diagnostics) {
+    let input = null, output = null;
+    for (const message of diagnostics || []) {
+      const text = String(message);
+      if (text.startsWith('__IO__:')) {
+        try { const parsed = JSON.parse(text.slice(7)); input = parsed.input; output = parsed.output; } catch (e) {}
+      }
+    }
+    return { input, output };
+  }
+  function groupFor(file, suite) {
+    if (!state.groups.has(file)) {
+      state.groups.set(file, { file, suite, status: 'RUNNING', durationMs: 0, tests: new Map() });
+    }
+    return state.groups.get(file);
+  }
+  function shortcut(name) {
+    return String(name || '').split(/[:·]/).map((s) => s.trim()).filter(Boolean).slice(0, 4).join(' · ');
+  }
+
+  function render() {
+    let total = 0, pass = 0, fail = 0, duration = 0;
+    for (const group of state.groups.values()) {
+      for (const test of group.tests.values()) {
+        if (test.status === 'PASS') pass++;
+        if (test.status === 'FAIL') fail++;
+        duration += test.durationMs || 0;
+      }
+      total += group.tests.size;
+    }
+    $('sumTotal').textContent = total;
+    $('sumPass').textContent = pass;
+    $('sumFail').textContent = fail;
+    $('sumTime').textContent = fmtMs(duration);
+    const completed = pass + fail;
+    const pct = total ? Math.round(completed / total * 100) : 0;
+    $('progressBar').style.width = pct + '%';
+    $('progressPct').textContent = pct + '%';
+    $('progressText').textContent = state.running
+      ? `Đang chạy ${SUITE_LABEL[state.currentSuite] || state.currentSuite}... (${completed}/${total})`
+      : (total ? `Hoàn tất · ${completed}/${total} test` : 'Sẵn sàng');
+
+    const host = $('results');
+    host.innerHTML = '';
+    for (const group of state.groups.values()) {
+      const visible = [...group.tests.values()].filter((t) =>
+        state.filter === 'all' || (state.filter === 'pass' ? t.status === 'PASS' : t.status === 'FAIL'));
+      if (!visible.length) continue;
+      const groupBox = document.createElement('div');
+      groupBox.className = 'group';
+      const head = document.createElement('div');
+      head.className = 'group-head';
+      head.innerHTML = `<b>${escapeHtml(group.file)}</b><span class="badge ${group.status}">${group.status}</span>` +
+        `<small>${visible.length} test · ${fmtMs(group.durationMs)}</small>`;
+      groupBox.appendChild(head);
+      const rows = document.createElement('div');
+      rows.className = 'rows';
+      for (const test of visible) {
+        const key = group.file + '::' + test.name;
+        const opened = state.expanded.has(key);
+        const row = document.createElement('div');
+        row.className = 'row';
+        const h = document.createElement('div');
+        h.className = 'row-head';
+        h.innerHTML = `<span class="badge ${test.status}">${test.status}</span>` +
+          `<span class="name">${escapeHtml(shortcut(test.name))}</span><span class="dur">${fmtMs(test.durationMs)}</span>`;
+        h.onclick = () => { opened ? state.expanded.delete(key) : state.expanded.add(key); render(); };
+        row.appendChild(h);
+        if (opened) {
+          const parsedIO = parseIO(test.diagnostics);
+          const io = { input: test.input !== undefined ? test.input : parsedIO.input,
+                       output: test.output !== undefined ? test.output : parsedIO.output };
+          const detail = document.createElement('div');
+          detail.className = 'detail';
+          detail.innerHTML =
+            `<div class="io"><h4>INPUT (Dữ liệu đầu vào)</h4><pre>${escapeHtml(pretty(io.input))}</pre></div>` +
+            `<div class="io"><h4>OUTPUT (Kết quả thực tế)</h4><pre>${escapeHtml(pretty(io.output))}</pre></div>`;
+          row.appendChild(detail);
+          if (test.status === 'FAIL' && test.error) {
+            const err = document.createElement('div');
+            err.className = 'error';
+            err.innerHTML = `<b>Expected vs Actual</b><pre>EXPECTED:\n${escapeHtml(pretty(test.error.expected))}\n\nACTUAL:\n${escapeHtml(pretty(test.error.actual))}\n\nMESSAGE:\n${escapeHtml(test.error.message || '')}\n\nSTACK:\n${escapeHtml(test.error.stack || '')}</pre>`;
+            row.appendChild(err);
+          }
+        }
+        rows.appendChild(row);
+      }
+      groupBox.appendChild(rows);
+      host.appendChild(groupBox);
+    }
+  }
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function reset(suite) {
+    state.groups.clear(); state.expanded.clear(); state.running = true; state.currentSuite = suite;
+    $('metrics').classList.add('hidden');
+    $('logbox').classList.add('hidden');
+    $('logbox').textContent = '';
+    document.querySelectorAll('.toolbar button').forEach((b) => b.disabled = true);
+    render();
+  }
+  function finish() {
+    state.running = false;
+    document.querySelectorAll('.toolbar button').forEach((b) => b.disabled = false);
+    for (const group of state.groups.values()) {
+      const statuses = [...group.tests.values()].map((t) => t.status);
+      group.status = statuses.includes('FAIL') ? 'FAIL' : statuses.includes('RUNNING') ? 'RUNNING' : 'PASS';
+      group.durationMs = [...group.tests.values()].reduce((sum, t) => sum + (t.durationMs || 0), 0);
+    }
+    render();
+  }
+  function log(line) {
+    const box = $('logbox');
+    box.classList.remove('hidden');
+    box.textContent += line + '\n';
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function handle(event) {
+    if (event.type === 'run:start') return;
+    if (event.type === 'test:start') {
+      const group = groupFor(event.file || 'unknown.test.js', state.currentSuite);
+      if (!group.tests.has(event.name)) group.tests.set(event.name, { name: event.name, status: 'RUNNING', durationMs: 0, diagnostics: [] });
+      render(); return;
+    }
+    if (event.type === 'test:diagnostic') {
+      const group = groupFor(event.file || 'unknown.test.js');
+      if (event.name && group.tests.has(event.name)) group.tests.get(event.name).diagnostics.push(event.message);
+      render(); return;
+    }
+    if (event.type === 'test:pass' || event.type === 'test:fail') {
+      const group = groupFor(event.file || 'unknown.test.js');
+      const test = group.tests.get(event.name) || { name: event.name, diagnostics: [] };
+      test.status = event.type === 'test:pass' ? 'PASS' : 'FAIL';
+      test.durationMs = event.durationMs || 0;
+      test.error = event.error || null;
+      test.diagnostics = event.diagnostics || test.diagnostics;
+      group.tests.set(event.name, test);
+      render(); return;
+    }
+    if (event.type === 'load:log') { log(event.line); return; }
+    if (event.type === 'load:metrics') {
+      const m = event.metrics;
+      const box = $('metrics');
+      box.classList.remove('hidden');
+      box.innerHTML =
+        `<div class="metric"><span>Bot ảo</span><b>${event.users}</b></div>` +
+        `<div class="metric"><span>Tổng request</span><b>${m.success}/${m.success + m.fail}</b></div>` +
+        `<div class="metric"><span>Tỷ lệ lỗi</span><b>${m.errorRate}%</b></div>` +
+        `<div class="metric"><span>Vé đã chốt</span><b>${m.locked}</b></div>` +
+        `<div class="metric"><span>Latency TB / p95 / p99</span><b>${m.lock.avg}/${m.lock.p95}/${m.lock.p99} ms</b></div>` +
+        `<div class="metric"><span>Xổ TB / p95 / p99</span><b>${m.draw.avg}/${m.draw.p95}/${m.draw.p99} ms</b></div>` +
+        `<div class="metric ${m.consistent ? 'ok' : 'bad'}"><span>Nhất quán tiền thưởng</span><b>${m.consistent ? 'ĐẠT' : 'KHÔNG ĐẠT'}</b></div>`;
+      const group = groupFor('load-test.js', 'load');
+      group.tests.set('Load Test · ' + event.users + ' bot', {
+        name: 'Load Test · ' + event.users + ' bot',
+        status: m.consistent ? 'PASS' : 'FAIL', durationMs: 0, diagnostics: [],
+        input: event.input, output: event.output,
+      });
+      render(); return;
+    }
+    if (event.type === 'run:done') { finish(); return; }
+  }
+
+  function start(suite) {
+    if (state.source) state.source.close();
+    reset(suite);
+    const users = Number($('users').value) || 50;
+    const source = new EventSource('/api/run?suite=' + encodeURIComponent(suite) + '&users=' + users);
+    state.source = source;
+    source.onmessage = (message) => {
+      try { handle(JSON.parse(message.data)); } catch (e) { log('Lỗi parse event: ' + e.message); }
+    };
+    source.onerror = () => { if (state.running) { finish(); log('⚠ Kết nối SSE bị ngắt.'); } source.close(); };
+  }
+
+  document.querySelectorAll('[data-suite]').forEach((button) => button.addEventListener('click', () => start(button.dataset.suite)));
+  $('btnLoad').addEventListener('click', () => start('load'));
+  $('filter').addEventListener('change', (event) => { state.filter = event.target.value; render(); });
+  render();
+})();
+</script>
+</body>
+</html>

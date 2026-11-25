@@ -9,6 +9,7 @@ const net = require('node:net');
 const crypto = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 const { io: createClient } = require('socket.io-client');
+const { logTestIO } = require('./test-io');
 const TEST_ADMIN_PASSWORD = 'test-only-admin-password';
 const TEST_ADMIN_SALT = 'integration-test-salt';
 
@@ -90,7 +91,7 @@ describe('Loto Tet socket integration', () => {
     if (dataDir) fs.rmSync(dataDir, { recursive: true, force: true });
   });
 
-  it('authenticates admin, blocks unauthorized control, and enforces game flow', async () => {
+  it('authenticates admin, blocks unauthorized control, and enforces game flow', async (t) => {
     for (const page of ['/', '/play.html', '/tv.html', '/favicon.svg', '/js/announcer.js']) {
       const response = await fetch(`${baseUrl}${page}`);
       assert.equal(response.status, 200, `${page} should be served`);
@@ -176,7 +177,13 @@ describe('Loto Tet socket integration', () => {
     // 4 ô tài chính/luật chơi bị khóa ngay sau khi chốt vé.
     const rejectedPriceChange = event(admin, 'settings:error');
     admin.emit('settings:update', { betPerTicket: 50000 });
-    assert.match((await rejectedPriceChange).message, /khóa trong ván/i);
+    const lockError = await rejectedPriceChange;
+    assert.match(lockError.message, /khóa trong ván/i);
+    logTestIO(t, {
+      input: { action: 'settings:update', field: 'betPerTicket', value: 50000, state: 'đã chốt vé' },
+      output: { accepted: false, message: lockError.message,
+        betUnchanged: (await (await fetch(`${baseUrl}/api/state`)).json()).config.betPerTicket },
+    });
     const state = await (await fetch(`${baseUrl}/api/state`)).json();
     assert.equal(state.playerCount, 1);
     assert.equal(state.players[0].name, 'Lan');
@@ -257,6 +264,10 @@ describe('Loto Tet socket integration', () => {
     await winnerLimit;
     const capped = await (await fetch(`${baseUrl}/api/state`)).json();
     assert.equal(capped.maxWinnersReached, true);
+    logTestIO(t, {
+      input: { maxWinners: 1, drawn: capped.drawn.length, winners: capped.winners.length },
+      output: { maxWinnersReached: capped.maxWinnersReached, prizePerWinner: capped.prizePerWinner },
+    });
     const cappedDraw = event(admin, 'draw:error');
     admin.emit('draw:request', {});
     assert.match((await cappedDraw).message, /tối đa/i);
@@ -287,6 +298,11 @@ describe('Loto Tet socket integration', () => {
     admin.emit('game:finish');
     await delay(50);
     const ledger = JSON.parse(fs.readFileSync(path.join(dataDir, 'finance.json'), 'utf8'));
+    logTestIO(t, {
+      input: { action: 'game:finish', winners: ledger.lan ? 1 : 0, winner: 'Lan' },
+      output: { winnings: ledger.lan.winnings, totalWon: ledger.lan.totalWon,
+        deposited: ledger.lan.deposited, debt: ledger.lan.debt },
+    });
     assert.equal(ledger.lan.winnings, 20000);
     assert.equal(ledger.lan.deposited, 20000);
     assert.equal(ledger.lan.debt, 0);

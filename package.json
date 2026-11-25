@@ -6,6 +6,7 @@
     "start:open": "cd backend && npm run start:open",
     "test": "node --test backend/test/*.test.js",
     "test:menu": "node backend/test/cli.js",
+    "test:ui": "node backend/test/ui-server.js",
     "install:backend": "cd backend && npm install",
     "load-test": "node backend/test/load-test.js"
   }

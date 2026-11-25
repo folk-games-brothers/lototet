@@ -8,6 +8,7 @@
     "start:open": "node server.js --open",
     "test": "node --test test/*.test.js",
     "test:menu": "node test/cli.js",
+    "test:ui": "node test/ui-server.js",
     "load-test": "node test/load-test.js"
   },
   "dependencies": {

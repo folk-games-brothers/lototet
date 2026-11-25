@@ -9,6 +9,7 @@ const net = require('node:net');
 const crypto = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 const { io: createClient } = require('socket.io-client');
+const { logTestIO } = require('./test-io');
 
 const TEST_ADMIN_PASSWORD = 'test-only-admin-password';
 const TEST_ADMIN_SALT = 'integration-test-salt';
@@ -150,7 +151,7 @@ describe('Loto Tet concurrency', () => {
     return JSON.parse(fs.readFileSync(path.join(dataDir, 'game-state.json'), 'utf8'));
   }
 
-  it('chỉ 1 trong 10 người giữ V001 khi chọn/chốt đồng thời, 9 người bị từ chối và không trừ tiền', async () => {
+  it('chỉ 1 trong 10 người giữ V001 khi chọn/chốt đồng thời, 9 người bị từ chối và không trừ tiền', async (t) => {
     await config({ maxPlayers: 1, betPerTicket: 1000, maxTicketsPerPlayer: 1 });
     const { clients, results } = await joinPlayers(10, 'C');
     const assigned = results.filter((r) => r.type === 'assigned');
@@ -158,6 +159,11 @@ describe('Loto Tet concurrency', () => {
     assert.equal(assigned.length, 1, 'chỉ một người được nhận vé');
     assert.equal(rejected.length, 9, '9 người còn lại bị từ chối');
     assert.equal(assigned[0].data.tickets[0].code, 'V001');
+    logTestIO(t, {
+      input: { concurrentJoins: 10, ticketCode: 'V001', availableTickets: 1 },
+      output: { assigned: assigned.length, rejected: rejected.length,
+        owner: assigned[0].data.tickets[0].code, issued: (await apiState()).issued },
+    });
 
     // Tất cả cùng gửi lệnh chốt; người không có vé phải bị bỏ qua.
     clients.forEach((socket) => socket.emit('ticket:lock', {
@@ -175,7 +181,7 @@ describe('Loto Tet concurrency', () => {
     }
   });
 
-  it('chốt đúp và trả thưởng 3 lần liên tiếp chỉ xử lý đúng 1 lần, totalWon không đổi', async () => {
+  it('chốt đúp và trả thưởng 3 lần liên tiếp chỉ xử lý đúng 1 lần, totalWon không đổi', async (t) => {
     await config({ maxPlayers: 5, betPerTicket: 1000, maxWinners: 1 });
     admin.emit('admin:wallet-deposit', { name: 'Duy', amount: 10000 });
     await delay(150);
@@ -213,9 +219,15 @@ describe('Loto Tet concurrency', () => {
     assert.equal(afterPay.winnings, 0, 'reward chỉ được xử lý 1 lần');
     assert.equal(afterPay.balance, 11000, 'số dư chỉ cộng đúng 1 lần');
     assert.equal(afterPay.totalWon, 1000, 'totalWon giữ nguyên');
+    logTestIO(t, {
+      input: { doubleLockRequests: 5, payRewardRequests: 3, playerId: 'duy-1', prize: 1000 },
+      output: { ticketsOwned: gameState().tickets.filter((x) => x.owner === 'duy-1').length,
+        deposited: won.deposited, winningsAfterPay: afterPay.winnings,
+        balanceAfterPay: afterPay.balance, totalWon: afterPay.totalWon },
+    });
   });
 
-  it('chốt vé muộn bị từ chối khi ván đã xổ và Qua ván mới dọn sạch số đã xổ', async () => {
+  it('chốt vé muộn bị từ chối khi ván đã xổ và Qua ván mới dọn sạch số đã xổ', async (t) => {
     await config({ maxPlayers: 5, betPerTicket: 1000, maxWinners: 2, rollSeconds: 1 });
     for (const name of ['An', 'Bê']) admin.emit('admin:wallet-deposit', { name, amount: 10000 });
     await delay(150);
@@ -249,6 +261,11 @@ describe('Loto Tet concurrency', () => {
     assert.equal(mid.prize, 1000, 'tổng giải chỉ tính 1 vé đã chốt');
     assert.equal(finances().an.deposited, 9000);
     assert.equal(finances()['bê'].deposited, 10000, 'người chốt muộn không bị trừ cược');
+    logTestIO(t, {
+      input: { action: 'ticket:lock', playerId: 'b-1', at: 'đang quay số (rolling=true)' },
+      output: { rejected: true, playerCount: mid.playerCount, prize: mid.prize,
+        latePlayerDeposited: finances()['bê'].deposited },
+    });
 
     // Race tiếp theo: đang quay thì Admin bấm Qua ván mới.
     const oldGameId = gameState().id;
@@ -265,7 +282,7 @@ describe('Loto Tet concurrency', () => {
     assert.equal(payload.saved, false, 'ván chưa đủ Kinh nên không ghi lịch sử');
   });
 
-  it('20 người vào phòng đồng thời: tiền thu vào bằng tổng tiền giải, state nhất quán', async () => {
+  it('20 người vào phòng đồng thời: tiền thu vào bằng tổng tiền giải, state nhất quán', async (t) => {
     const cfg = await config({ maxPlayers: 30, betPerTicket: 1000, maxWinners: 1, maxTicketsPerPlayer: 1 });
     const { clients, results } = await joinPlayers(20, 'N');
     assert.equal(results.filter((r) => r.type === 'assigned').length, 20);
@@ -295,5 +312,11 @@ describe('Loto Tet concurrency', () => {
     const finalState = await apiState();
     assert.equal(finalState.maxWinnersReached, true);
     assert.ok(finalState.winners.length >= 1);
+    logTestIO(t, {
+      input: { virtualPlayers: 20, ticketsPerPlayer: 1, betPerTicket: cfg.betPerTicket },
+      output: { lockedTickets: locked.playerCount, totalWithdrawn,
+        totalPrize: locked.prize, totalWinnings,
+        consistent: totalDeposited === 20 * 10000 - totalWithdrawn && totalWinnings <= locked.prize },
+    });
   });
 });
