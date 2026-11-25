@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "start": "cd backend && npm start",
-    "install:backend": "cd backend && npm install"
+    "install:backend": "cd backend && npm install",
+    "load-test": "node backend/test/load-test.js"
   }
 }

@@ -343,12 +343,6 @@ function persistState() {
   game.waitingPlayers = waitingPlayers;
   writeJSON(STATE_FILE, game);
 }
-// Ghi trạng thái bất đồng bộ, dùng cho đường xổ số để không chặn event loop.
-async function persistStateAsync() {
-  game.waitingPlayers = waitingPlayers;
-  try { await fs.promises.writeFile(STATE_FILE, JSON.stringify(game, null, 2), 'utf8'); }
-  catch (e) { console.error('persistStateAsync error', e && e.message); }
-}
 // Throttle phát host:state trong lúc tự xổ để giảm tải socket/UI.
 let lastHostStateAt = 0;
 function emitHostStateThrottled(minGapMs = 450) {
@@ -932,8 +926,9 @@ function commitDraw(num, snapshot, onDone) {
       }
     });
 
-    // Mỗi lần xổ số không được chặn event loop bằng ghi file đồng bộ.
-    persistStateAsync();
+    // Ghi đồng bộ nhưng chỉ định kỳ vài lượt: tránh chồng async writes làm hỏng file,
+    // vẫn giảm đáng kể số lần write so với mỗi lượt xổ.
+    if (game.drawn.length % 5 === 0) persistState();
     io.emit('draw:result', { number: num, drawn: game.drawn });
 
     // Người gần KINH (hàng còn đúng 1 số)
