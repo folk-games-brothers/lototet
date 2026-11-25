@@ -169,6 +169,40 @@ test('admin control panel: main actions + single next-round button, 4 TV/audio t
   assert.doesNotMatch(host, /setBtnLabel\([^)]*['"][🎲🤖📜🏆🔊🎤⏹]/);
 });
 
+test('business audit: rounded prize, locked settings bypass, locked-only Kinh and simultaneous over-limit', () => {
+  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+
+  // Prize per winner is a clean multiple of 1.000đ.
+  assert.match(server, /Math\.floor\(pool \/ game\.winners\.length \/ 1000\) \* 1000/);
+
+  // Admin cannot bypass hard locks through config:update (works after F5 too).
+  assert.match(server, /socket\.on\('config:update', \(cfg\) => \{[\s\S]{0,400}LOCKED_FIELDS/);
+  assert.match(server, /roundStarted = game\.drawn\.length > 0 \|\| game\.tickets\.some\(\(t\) => t\.locked\)/);
+
+  // Only locked (chốt) tickets are matched / shown as near-Kinh; prizePool already filters locked.
+  assert.match(server, /if \(!ticket\.owner \|\| !ticket\.locked\) return;/);
+  assert.match(server, /if \(!ticket\.owner \|\| !ticket\.locked \|\| seenNear\.has\(ticket\.owner\)\) return;/);
+
+  // Đồng Kinh trong CÙNG lượt được phép vượt max; không nhận thêm ở lượt sau.
+  assert.match(server, /const winnersAtDrawStart = game\.winners\.length/);
+  assert.match(server, /game\.winners\.length >= game\.config\.maxWinners\s*\n\s*&& game\.winners\.length === winnersAtDrawStart/);
+
+  // Finance buttons never touch totalWon except reset-achievements.
+  const payReward = server.slice(server.indexOf("socket.on('admin:pay-reward'"), server.indexOf("socket.on('admin:offset-debt'"));
+  const offsetDebt = server.slice(server.indexOf("socket.on('admin:offset-debt'"), server.indexOf("socket.on('admin:reset-achievements'"));
+  assert.match(payReward, /account\.winnings = 0;/);
+  assert.doesNotMatch(payReward, /account\.totalWon/);
+  assert.match(offsetDebt, /account\.winnings -= used;/);
+  assert.doesNotMatch(offsetDebt, /account\.totalWon/);
+
+  // Kick-all only clears tickets; wipe clears finances + history.
+  const kickAll = server.slice(server.indexOf("socket.on('admin:kick-all'"), server.indexOf("socket.on('admin:adjust-wallet'"));
+  assert.doesNotMatch(kickAll, /finances = \{\}/);
+  const wipe = server.slice(server.indexOf("socket.on('admin:wipe-all-data'"));
+  assert.match(wipe.slice(0, 700), /finances = \{\}/);
+  assert.match(wipe.slice(0, 700), /writeJSON\(HISTORY_FILE, \[\]\)/);
+});
+
 test('TV rules overlay: fixed four-section text, Admin sync and auto-close on draw', () => {
   const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');

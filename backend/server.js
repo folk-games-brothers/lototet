@@ -373,7 +373,9 @@ function prizePool() {
 }
 function prizePerWinner() {
   const pool = prizePool();
-  return game.winners.length ? Math.floor(pool / game.winners.length) : pool;
+  if (!game.winners.length) return pool;
+  // Chia đều và làm tròn xuống bội số 1.000đ cho gọn khi trả thưởng.
+  return Math.max(0, Math.floor(pool / game.winners.length / 1000) * 1000);
 }
 function lockedPlayers() {
   const map = new Map();
@@ -849,16 +851,22 @@ function commitDraw(num, snapshot, onDone) {
 
     const newKinh = [];
     const newWaiting = [];
+    // Cho phép các vé ĐỒNG KINH trong CÙNG lượt này vượt số người thắng tối đa,
+    // nhưng không nhận thêm ở các lượt sau khi đã đạt giới hạn.
+    const winnersAtDrawStart = game.winners.length;
 
     game.tickets.forEach((ticket) => {
-      if (!ticket.owner) return;
+      // Chỉ vé đã CHỐT mới được xét Kinh và tính vào giải.
+      if (!ticket.owner || !ticket.locked) return;
       ticket.rows.forEach((row, ri) => {
         rowNumbers(row).forEach((c) => { if (c.value === num) c.matched = true; });
         const unmatched = rowNumbers(row).filter((c) => !c.matched);
         row.complete = unmatched.length === 0;
 
         if (row.complete && !row.awarded) {
-          if (game.config.maxWinners > 0 && game.winners.length >= game.config.maxWinners) {
+          if (game.config.maxWinners > 0
+            && game.winners.length >= game.config.maxWinners
+            && game.winners.length === winnersAtDrawStart) {
             row.awarded = true;
             return;
           }
@@ -932,7 +940,7 @@ function commitDraw(num, snapshot, onDone) {
     const nearPlayers = [];
     const seenNear = new Set();
     game.tickets.forEach((ticket) => {
-      if (!ticket.owner || seenNear.has(ticket.owner)) return;
+      if (!ticket.owner || !ticket.locked || seenNear.has(ticket.owner)) return;
       ticket.rows.forEach((row, ri) => {
         const nums = rowNumbers(row);
         const remaining = nums.filter((c) => !c.matched).length;
@@ -991,7 +999,7 @@ function commitDraw(num, snapshot, onDone) {
         io.emit('game:limit-reached', {
           maxWinners: limit, winnerCount: game.winners.length,
           winners: game.winners,
-          prizePerWinner: game.winners.length ? Math.floor(prizePool() / game.winners.length) : 0,
+          prizePerWinner: prizePerWinner(),
         });
         persistState();
         // Chốt ván ngay: chia giải vào ví thưởng + thành tích, ghi lịch sử.
@@ -1160,7 +1168,7 @@ io.on('connection', (socket) => {
   socket.on('settings:update', (s) => {
     if (!s) return;
     const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
-    const roundStarted = game.drawn.length > 0 || game.tickets.some((t) => t.owner);
+    const roundStarted = game.drawn.length > 0 || game.tickets.some((t) => t.locked);
     for (const key of LOCKED_FIELDS) {
       if (s[key] !== undefined && roundStarted) {
         socket.emit('settings:error', {
@@ -1203,6 +1211,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('config:update', (cfg) => {
+    // Chặn luôn đường vòng: config:update không được đổi 4 ô bị khóa trong ván.
+    const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
+    const roundStarted = game.drawn.length > 0 || game.tickets.some((t) => t.locked);
+    if (cfg && LOCKED_FIELDS.some((key) => cfg[key] !== undefined) && roundStarted) {
+      socket.emit('settings:error', {
+        message: 'Thông số này đã bị khóa trong ván. Tự mở khóa khi Qua ván mới.',
+      });
+      return;
+    }
     const maxPlayers = Math.max(1, Math.min(1000, Number(cfg.maxPlayers) || 200));
     const rollSeconds = Math.max(1, Math.min(15, Number(cfg.rollSeconds) || game.config.rollSeconds || 4.5));
     let autoRollSeconds = Math.max(0.3, Math.min(30, Number(cfg.autoRollSeconds) || game.config.autoRollSeconds || 9));

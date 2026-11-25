@@ -152,9 +152,8 @@ describe('Loto Tet socket integration', () => {
     assert.equal(tvSnapshot.participants[0].locked, false);
     assert.equal(tvSnapshot.participants[0].ticketCount, 2);
 
-    const rejectedPriceChange = event(admin, 'settings:error');
-    admin.emit('settings:update', { betPerTicket: 50000 });
-    assert.match((await rejectedPriceChange).message, /ván mới/i);
+    // Vé mới được chọn (chưa chốt) thì ván chưa bắt đầu: đổi mức cược vẫn được phép.
+    // Kiểm tra khóa cứng sau khi đã Chốt vé (xem bên dưới).
 
     duplicatePlayer = await connect(baseUrl);
     const duplicateAssigned = event(duplicatePlayer, 'ticket:assigned');
@@ -174,6 +173,10 @@ describe('Loto Tet socket integration', () => {
     const detailedState = await adminPlayerState;
     const tvLockedSnapshot = await tvLockedState;
     assert.equal(tvLockedSnapshot.participants.find((participant) => participant.name === 'Lan').locked, true);
+    // 4 ô tài chính/luật chơi bị khóa ngay sau khi chốt vé.
+    const rejectedPriceChange = event(admin, 'settings:error');
+    admin.emit('settings:update', { betPerTicket: 50000 });
+    assert.match((await rejectedPriceChange).message, /khóa trong ván/i);
     const state = await (await fetch(`${baseUrl}/api/state`)).json();
     assert.equal(state.playerCount, 1);
     assert.equal(state.players[0].name, 'Lan');
