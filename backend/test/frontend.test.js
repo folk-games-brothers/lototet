@@ -195,6 +195,11 @@ test('business audit: rounded prize, locked settings bypass, locked-only Kinh an
   assert.match(offsetDebt, /account\.winnings -= used;/);
   assert.doesNotMatch(offsetDebt, /account\.totalWon/);
 
+  // Chốt vé: chống chốt đúp và chặn chốt muộn khi ván đã quay.
+  assert.match(server, /if \(owned\.every\(\(t\) => t\.locked\)\)/);
+  assert.match(server, /if \(game\.drawn\.length > 0 \|\| rolling\)/);
+  assert.match(server, /không thể chốt vé muộn/);
+
   // Kick-all only clears tickets; wipe clears finances + history.
   const kickAll = server.slice(server.indexOf("socket.on('admin:kick-all'"), server.indexOf("socket.on('admin:adjust-wallet'"));
   assert.doesNotMatch(kickAll, /finances = \{\}/);

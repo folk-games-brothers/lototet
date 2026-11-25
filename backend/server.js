@@ -1539,6 +1539,17 @@ io.on('connection', (socket) => {
     }
     const owned = findTickets(payload && payload.playerId);
     if (!owned.length) return;
+    const codes = owned.map((t) => t.code);
+    // Chốt đúp: không ghi state lại, vẫn gửi ack để client không chờ.
+    if (owned.every((t) => t.locked)) {
+      socket.emit('ticket:locked', { code: owned[0].code, name: owned[0].name, codes });
+      return;
+    }
+    // Ván đã xổ số thì không nhận thêm vé chốt muộn (tránh lệch tổng giải).
+    if (game.drawn.length > 0 || rolling) {
+      socket.emit('ticket:error', { message: 'Ván đã bắt đầu, không thể chốt vé muộn!' });
+      return;
+    }
     owned.forEach((t) => { t.locked = true; });
     persistState();
     socket.emit('ticket:locked', { code: owned[0].code, name: owned[0].name, codes: owned.map((t) => t.code) });
