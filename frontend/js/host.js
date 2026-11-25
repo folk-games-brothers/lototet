@@ -5,10 +5,117 @@ const socket = io();
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
+// Cập nhật chữ nút mà KHÔNG xóa icon SVG bên trong.
+function setBtnLabel(id, text) {
+  const btn = $(id);
+  if (!btn) return;
+  const label = btn.querySelector('.btn-label');
+  if (label) label.textContent = text;
+  else btn.textContent = text;
+}
 
 let state = { drawn: [], winners: [], playerCount: 0, config: {}, history: [] };
-let rollTimer = null;
+let botEnabled = false;
+let sfxEnabled = true;
+const announcerStyles = window.LotoAnnouncer.styles;
+let announcerStyleIndex = 0;
 let rolling = false;
+let configAutoCollapsed = false;
+
+/* ---------------------- Thu gọn cài đặt ---------------------- */
+function setConfigCollapsed(collapsed) {
+  const panel = $('configPanel');
+  const btn = $('btnToggleConfig');
+  if (panel) panel.classList.toggle('collapsed', !!collapsed);
+  if (btn) {
+    const label = btn.querySelector('span');
+    if (label) label.textContent = collapsed ? 'Mở rộng' : 'Thu gọn';
+    btn.setAttribute('aria-expanded', String(!collapsed));
+  }
+}
+function autoCollapseConfig() {
+  if (configAutoCollapsed) return;
+  const started = (state.playerCount || 0) > 0 || (state.drawn || []).length > 0;
+  if (!started) return;
+  configAutoCollapsed = true;
+  setConfigCollapsed(true);
+}
+
+/* ---------------------- Cài đặt: auto-save + khóa trong ván ---------------------- */
+const LOCKED_CONFIG_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
+const CONFIG_INPUTS = {
+  maxPlayers: 'cfgMaxPlayers',
+  maxTicketsPerPlayer: 'cfgMaxPerPlayer',
+  betPerTicket: 'cfgBet',
+  maxWinners: 'cfgMaxWinners',
+  rollSeconds: 'cfgRoll',
+  autoRollSeconds: 'cfgAutoRoll',
+};
+
+// Ván bắt đầu khi đã xổ ít nhất 1 số hoặc đã có người chốt vé.
+function isRoundStarted() {
+  return (state.drawn || []).length > 0
+    || !!(state.players || []).some((p) => p.locked)
+    || !!state.maxWinnersReached;
+}
+function applyConfigLock() {
+  const started = isRoundStarted();
+  document.querySelectorAll('.field.lockable').forEach((field) => {
+    const input = field.querySelector('input');
+    const note = field.querySelector('.lock-note');
+    const lock = field.querySelector('.field-lock');
+    field.classList.toggle('is-locked', started && LOCKED_CONFIG_FIELDS.includes(field.dataset.field));
+    if (input) input.disabled = started && LOCKED_CONFIG_FIELDS.includes(field.dataset.field);
+    if (note) note.classList.toggle('hidden', !started);
+    if (lock) lock.classList.toggle('hidden', !started);
+  });
+}
+let savedTimer;
+function flashSaved() {
+  const el = $('configSaved');
+  if (!el) return;
+  el.textContent = '✓ Đã lưu';
+  el.classList.add('show');
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => { if (!el.classList.contains('show')) el.textContent = ''; }, 400);
+  }, 2000);
+}
+function saveConfigField(key) {
+  const input = $(CONFIG_INPUTS[key]);
+  if (!input || input.disabled) return;
+  const value = Number(input.value);
+  if (!Number.isFinite(value) || value < 0) {
+    toast('Giá trị không hợp lệ.');
+    return;
+  }
+  // Ràng buộc nhịp quay: autoRoll >= roll + 1.
+  if (key === 'rollSeconds') {
+    const auto = Number($('cfgAutoRoll').value);
+    if (Number.isFinite(auto) && auto < value + 3.5) {
+      $('cfgAutoRoll').value = String(value + 3.5);
+      toast('Quay tự động tự động chỉnh thành ' + (value + 3.5) + 's (lớn hơn thời gian quay 3.5s).');
+    }
+  } else if (key === 'autoRollSeconds') {
+    const roll = Number($('cfgRoll').value);
+    if (Number.isFinite(roll) && value < roll + 3.5) {
+      input.value = String(roll + 3.5);
+      toast('Quay tự động phải lớn hơn thời gian quay ít nhất 3.5 giây.');
+      return;
+    }
+  }
+  socket.emit('settings:update', { [key]: input.value });
+  flashSaved();
+}
+Object.entries(CONFIG_INPUTS).forEach(([key, id]) => {
+  const input = $(id);
+  if (!input) return;
+  input.addEventListener('blur', () => saveConfigField(key));
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+  });
+});
 
 /* ---------------------- Toast ---------------------- */
 let toastTimer;
@@ -61,52 +168,18 @@ function beep(type) {
 }
 
 /* ---------------------- Render ---------------------- */
-function renderBigNumber(num, animate) {
-  const el = $('bigNumber');
-  el.innerHTML = num !== null && num !== undefined
-    ? String(num).padStart(2, '0')
-    : '<span class="placeholder">--</span>';
-  if (animate) {
-    el.classList.remove('rolling', 'pop');
-    void el.offsetWidth;
-    el.classList.add('pop');
-  }
-}
-
-/* ---------------- Hiệu ứng quay số ---------------- */
-function startRoll(duration, min, max) {
+/* ---------------- Trạng thái quay (hình ảnh do TV preview render) ---------------- */
+function startRoll() {
   stopRoll();
   rolling = true;
   $('btnDraw').disabled = true;
-  $('btnDraw').textContent = '⏳ ĐANG QUAY…';
-  $('stageStatus').textContent = '🎲 Đang quay số… chờ chút!';
-  const el = $('bigNumber');
-  el.classList.add('spinning');
-
-  const lo = Number(min) || 1;
-  const hi = Number(max) || 90;
-  const start = performance.now();
-  let ticks = 0;
-
-  const tick = () => {
-    if (!rolling) return;
-    const p = Math.min(1, (performance.now() - start) / duration);
-    // Nhịp quay: nhanh lúc đầu (40ms), càng về cuối càng chậm (đến ~520ms)
-    const delay = 40 + Math.pow(p, 3) * 480;
-    el.textContent = pad(lo + Math.floor(Math.random() * (hi - lo + 1)));
-    if (++ticks % 3 === 0) beep('tick');
-    rollTimer = setTimeout(tick, delay);
-  };
-  tick();
+  setBtnLabel('btnDraw', 'ĐANG QUAY…');
 }
 
 function stopRoll() {
   rolling = false;
-  if (rollTimer) clearTimeout(rollTimer);
-  rollTimer = null;
-  $('bigNumber').classList.remove('spinning');
   $('btnDraw').disabled = false;
-  $('btnDraw').textContent = '🎲 XỔ SỐ NGAY';
+  setBtnLabel('btnDraw', 'XỔ SỐ NGAY');
 }
 
 function renderStats() {
@@ -116,21 +189,9 @@ function renderStats() {
   $('statWaiting').textContent = state.waitingCount || 0;
   $('statWinners').textContent = (state.winners || []).length;
   $('statPrize').textContent = fmt(state.prize);
-}
-
-function pad(n) { return String(n).padStart(2, '0'); }
-
-function renderDrawn() {
-  const grid = $('drawnGrid');
-  if (!state.drawn || state.drawn.length === 0) {
-    grid.innerHTML = '<div class="empty">Chưa có số nào được xổ.</div>';
-    return;
-  }
-  const latest = state.drawn[state.drawn.length - 1];
-  grid.innerHTML = state.drawn
-    .map((n, i) => `<div class="num-chip ${i === state.drawn.length - 1 ? 'latest' : ''}">${pad(n)}</div>`)
-    .join('');
-  grid.scrollTop = grid.scrollHeight;
+  const canDraw = (state.playerCount || 0) > 0 && !state.maxWinnersReached;
+  $('btnDraw').disabled = !canDraw || autoRunning;
+  $('btnAuto').disabled = !canDraw && !autoRunning;
 }
 
 function renderWinners() {
@@ -183,68 +244,330 @@ function renderHistory() {
     </div>`).join('');
 }
 
-let acks = [];
-function renderAcks() {
-  const box = $('tabAcks');
-  if (!acks.length) {
-    box.innerHTML = '<div class="empty">Chưa có phản hồi từ điện thoại.</div>';
-    return;
-  }
-  box.innerHTML = acks.map((a) => `
-    <div class="history-item">
-      <span>✅ <b>${escapeHtml(a.name)}</b> đã phản hồi từ điện thoại</span>
-      <small>${new Date(a.time).toLocaleTimeString('vi-VN')}</small>
-    </div>`).join('');
-}
-
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
+
+/* ---------------- Bot đọc số ---------------- */
+function speakText(text, { rate = 0.95, pitch = 1.05 } = {}) {
+  if (!botEnabled) return;
+  if (!('speechSynthesis' in window)) return;
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'vi-VN';
+    u.rate = rate;
+    u.pitch = pitch;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+function setBot(enabled) {
+  botEnabled = enabled;
+  const btn = $('btnBot');
+  if (btn) setBtnLabel('btnBot', enabled ? 'Bot đọc số: Bật' : 'Bot đọc số: Tắt');
+  // Server giữ nhịp tự xổ >= 2.5s để giọng đọc kịp phát.
+  socket.emit('bot:state', { enabled: botEnabled });
+}
+
+function ticketCodesFor(player) {
+  if (Array.isArray(player.codes) && player.codes.length) return player.codes;
+  return player.code ? String(player.code).split(', ').filter(Boolean) : [];
+}
+const expandedPlayers = new Set();
+let playerFilter = 'all';
+let playerQuery = '';
 
 function renderPlayers() {
   const box = $('playerList');
   const list = state.players || [];
   $('playerNote').textContent = `(${list.length} người)`;
-  if (!list.length) {
-    box.innerHTML = '<div class="empty">Chưa có ai chốt vé.</div>';
+  if (!box) return;
+
+  const q = playerQuery.trim().toLocaleLowerCase('vi');
+  const filtered = list.filter((p) => {
+    const codes = ticketCodesFor(p);
+    if (playerFilter === 'unlocked' && p.locked) return false;
+    if (playerFilter === 'debt' && !(Number(p.debt) > 0)) return false;
+    if (!q) return true;
+    return String(p.name || '').toLocaleLowerCase('vi').includes(q)
+      || codes.some((c) => String(c).toLocaleLowerCase('vi').includes(q));
+  });
+
+  if (!filtered.length) {
+    box.innerHTML = `<div class="empty">${list.length ? 'Không có người chơi phù hợp.' : 'Chưa có người chơi tham gia.'}</div>`;
     return;
   }
-  box.innerHTML = list.map((p) => `
-    <div class="history-item">
-      <span>🧧 <b>${escapeHtml(p.name)}</b> · vé <b>${escapeHtml(p.code)}</b></span>
-      <small>${p.kinh ? '🏆 ' + p.kinh + ' kinh' : 'Đã chốt'}</small>
+
+  box.innerHTML = filtered.map((p) => {
+    const codes = ticketCodesFor(p);
+    const pid = escapeHtml(p.playerId);
+    const expanded = expandedPlayers.has(p.playerId);
+    const locked = !!p.locked;
+    const debt = Number(p.debt) || 0;
+    const count = p.ticketCount || codes.length || 0;
+    return `
+    <div class="player-accordion ${expanded ? 'is-open' : ''}" data-player-id="${pid}">
+      <div class="player-row" role="button" tabindex="0" aria-expanded="${expanded}">
+        <svg class="icon player-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        <span class="player-name">${escapeHtml(p.name)}</span>
+        <span class="player-badge ${locked ? 'badge-locked' : 'badge-unlocked'}">${locked ? 'Đã chốt' : 'Chưa chốt'}</span>
+        <span class="player-tickets">${count} vé</span>
+        ${debt > 0 ? `<span class="player-badge badge-debt">Nợ: ${fmt(debt)}</span>` : ''}
+        <button class="mini-btn danger player-kick" data-action="kick" data-player-id="${pid}" type="button">Kick</button>
+      </div>
+      <div class="player-detail">
+        <div class="admin-ticket-codes">
+          ${codes.length
+            ? codes.map((code) => `<span class="admin-ticket-code">${escapeHtml(code)}</span>`).join('')
+            : `<span class="admin-ticket-code muted">${p.awaitingTicket ? 'Chưa nhận vé' : p.waitingNextRound ? 'Chờ ván sau' : 'Chưa có mã vé'}</span>`}
+        </div>
+        <div class="admin-player-finance">
+          <div><span>Đã nạp</span><b class="editable-finance" data-player-id="${pid}" data-field="deposited" data-value="${Number(p.deposited) || 0}">${fmt(p.deposited || 0)}</b></div>
+          <div><span>Tiền thưởng</span><b class="editable-finance" data-player-id="${pid}" data-field="winnings" data-value="${Number(p.winnings) || 0}">${fmt(p.winnings || 0)}</b></div>
+          <div><span>Đang nợ</span><b class="editable-finance" data-player-id="${pid}" data-field="debt" data-value="${debt}">${fmt(debt)}</b></div>
+        </div>
+        <div class="player-detail-actions">
+          <span class="player-total-won">Thành tích: <b>${fmt(Number(p.totalWon) || 0)}</b></span>
+          <button class="mini-btn" data-action="pay-reward" data-player-id="${pid}" type="button">Trả thưởng</button>
+          <button class="mini-btn" data-action="offset-debt" data-player-id="${pid}" type="button">Cấn nợ</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let walletModalPlayerId = '';
+let walletModalKind = '';
+function openWalletModal(playerId, kind) {
+  const player = (state.players || []).find((entry) => entry.playerId === playerId);
+  if (!player) return;
+  walletModalPlayerId = playerId;
+  walletModalKind = kind;
+  $('walletModalTitle').textContent = kind === 'loan' ? 'Cho vay' : 'Nạp tiền';
+  $('walletModalPlayer').textContent = player.name;
+  $('walletAmount').value = '';
+  $('walletModalSubmit').textContent = kind === 'loan' ? 'Ghi nhận khoản vay' : 'Xác nhận nạp';
+  $('walletModal').classList.add('show');
+  $('walletAmount').focus();
+}
+function closeWalletModal() {
+  $('walletModal').classList.remove('show');
+  walletModalPlayerId = '';
+  walletModalKind = '';
+}
+
+let editingFinance = null;
+function startFinanceEdit(el) {
+  if (editingFinance) return;
+  editingFinance = el;
+  const playerId = el.dataset.playerId;
+  const field = el.dataset.field;
+  const current = Number(el.dataset.value) || 0;
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = '0';
+  input.step = '1000';
+  input.value = String(current);
+  input.className = 'finance-edit-input';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+  let done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    editingFinance = null;
+    if (save) {
+      const amount = Math.floor(Number(input.value));
+      if (Number.isFinite(amount) && amount >= 0) {
+        socket.emit('admin:wallet-set', { playerId, field, amount });
+      }
+    }
+  }
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Escape') { e.preventDefault(); finish(false); input.blur(); }
+  });
+  input.addEventListener('blur', () => finish(true));
+}
+
+$('playerList').addEventListener('click', (event) => {
+  const editable = event.target.closest('.editable-finance');
+  if (editable) { startFinanceEdit(editable); return; }
+  const button = event.target.closest('button[data-action]');
+  if (button) {
+    const pid = button.dataset.playerId;
+    if (button.dataset.action === 'kick' && confirm('Kick người chơi này khỏi ván hiện tại và xoá dữ liệu vé của họ?')) {
+      socket.emit('admin:kick-player', { playerId: pid });
+    } else if (button.dataset.action === 'pay-reward' && confirm('Trả toàn bộ tiền thưởng chưa trả cho người chơi này? (Thành tích giữ nguyên)')) {
+      socket.emit('admin:pay-reward', { playerId: pid });
+    } else if (button.dataset.action === 'offset-debt' && confirm('Dùng tiền thưởng chưa trả để cấn nợ? (Thành tích giữ nguyên)')) {
+      socket.emit('admin:offset-debt', { playerId: pid });
+    }
+    return;
+  }
+  const row = event.target.closest('.player-row');
+  if (!row) return;
+  const item = row.closest('.player-accordion');
+  const id = item && item.dataset.playerId;
+  if (!id) return;
+  if (expandedPlayers.has(id)) expandedPlayers.delete(id); else expandedPlayers.add(id);
+  renderPlayers();
+});
+
+$('playerList').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const row = event.target.closest('.player-row');
+  if (!row) return;
+  event.preventDefault();
+  row.click();
+});
+
+$('playerSearch')?.addEventListener('input', (event) => {
+  playerQuery = event.target.value || '';
+  renderPlayers();
+});
+
+document.querySelectorAll('.filter-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    playerFilter = tab.dataset.filter || 'all';
+    document.querySelectorAll('.filter-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    renderPlayers();
+  });
+});
+
+$('walletModalForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const amount = Math.floor(Number($('walletAmount').value) || 0);
+  if (!walletModalPlayerId || amount <= 0) return;
+  socket.emit(walletModalKind === 'loan' ? 'admin:wallet-loan' : 'admin:wallet-deposit', {
+    playerId: walletModalPlayerId, amount,
+  });
+  closeWalletModal();
+});
+$('btnCloseWalletModal').addEventListener('click', closeWalletModal);
+$('walletModal').addEventListener('click', (event) => {
+  if (event.target === $('walletModal')) closeWalletModal();
+});
+
+function renderAdminLeaderboard() {
+  const box = $('adminLeaderboard');
+  if (!box) return;
+  // Server đã lọc totalWon > 0 và sắp giảm dần; vẫn lọc lại ở client cho chắc.
+  const entries = (state.leaderboard || []).filter((e) => Number(e.totalWon ?? e.winnings) > 0);
+  if (!entries.length) {
+    box.innerHTML = '<div class="empty">Chưa có ai ghi nhận thành tích.</div>';
+    return;
+  }
+  const medals = ['🥇', '🥈', '🥉'];
+  box.innerHTML = entries.map((e, i) => `
+    <div class="admin-leader-row">
+      <span>${medals[i] || '🏅'} ${escapeHtml(e.name)}</span>
+      <b>${fmt(Number(e.totalWon ?? e.winnings))}</b>
     </div>`).join('');
 }
 
 function renderAll() {
-  renderStats(); renderDrawn(); renderWinners(); renderHistory(); renderPlayers();
+  renderStats(); renderWinners(); renderHistory(); renderPlayers(); renderAdminLeaderboard();
 }
 
 /* ---------------------- Socket events ---------------------- */
+$('btnResetAchievements')?.addEventListener('click', () => {
+  if (!confirm('Reset toàn bộ THÀNH TÍCH (totalWon) về 0?\nTiền đã nạp, tiền thưởng chưa trả và tiền nợ vẫn giữ nguyên.')) return;
+  socket.emit('admin:reset-achievements');
+});
+
+$('btnWipeAllData')?.addEventListener('click', () => {
+  if (!confirm('⚠️ XÓA VĨNH VIỄN TOÀN BỘ DỮ LIỆU NGƯỜI CHƠI?\n\nSẽ xóa: ví tiền, danh sách người chơi, tất cả vé, lịch sử nạp/thưởng/nợ và thành tích.\nHành động này KHÔNG THỂ hoàn tác.')) return;
+  socket.emit('admin:wipe-all-data');
+});
+
+socket.on('admin:achievements-reset', () => toast('Đã reset thành tích (giữ nguyên ví & nợ).'));
+socket.on('admin:data-wiped', () => {
+  toast('Đã xóa toàn bộ dữ liệu người chơi.');
+  state = { drawn: [], winners: [], playerCount: 0, config: state.config || {}, history: [], leaderboard: [] };
+  expandedPlayers.clear();
+  renderAll();
+});
+
+const btnKickAll = $('btnKickAll');
+if (btnKickAll) btnKickAll.addEventListener('click', () => {
+  if (!confirm('Kick TẤT CẢ người chơi và xoá dữ liệu vé của họ?')) return;
+  socket.emit('admin:kick-all');
+});
+if (btnBot) btnBot.addEventListener('click', () => setBot(!botEnabled));
+const btnSfx = $('btnSfx');
+if (btnSfx) btnSfx.addEventListener('click', () => {
+  sfxEnabled = !sfxEnabled;
+  setBtnLabel('btnSfx', sfxEnabled ? 'Âm thanh lồng cầu: Bật' : 'Âm thanh lồng cầu: Tắt');
+  socket.emit('sfx:state', { enabled: sfxEnabled });
+});
+$('btnBotStyle').addEventListener('click', () => {
+  announcerStyleIndex = (announcerStyleIndex + 1) % announcerStyles.length;
+  setBtnLabel('btnBotStyle', `Kiểu đọc: ${announcerStyles[announcerStyleIndex].label}`);
+  socket.emit('announcer:style', { index: announcerStyleIndex });
+});
+
+socket.on('player:waiting', ({ message }) => {
+  toast(message || 'Bạn đang ở hàng chờ.');
+});
+socket.on('wallet:adjust', ({ amount, reason }) => {
+  // host không dùng ví, bỏ qua
+});
+socket.on('near:kinh', ({ players }) => {
+  const candidates = (players || []).filter((p) => p.name);
+  if (candidates.length) {
+    toast('Gần KINH: ' + candidates.map((p) => `${p.name} · hàng ${p.row}`).join(', '));
+    speakText('Sắp KINH: ' + candidates.map((p) => `${p.name}, hàng ${p.row}`).join('. '));
+  }
+});
+
 socket.on('connect', () => {
+  $('adminLoginError').textContent = '';
+});
+socket.on('admin:authenticated', () => {
+  $('adminLogin').classList.add('hidden');
+  document.querySelector('.app').classList.remove('hidden');
+  $('adminPassword').value = '';
   socket.emit('host:register');
+  socket.emit('bot:state', { enabled: botEnabled });
+  socket.emit('sfx:state', { enabled: sfxEnabled });
 });
-
-socket.on('qr:ready', ({ dataUrl, joinUrl }) => {
-  $('qrImg').src = dataUrl;
-  $('qrUrl').textContent = joinUrl;
+socket.on('admin:login-failed', ({ message }) => {
+  $('adminLoginError').textContent = message || 'Đăng nhập thất bại.';
 });
-
+socket.on('admin:required', () => {
+  $('adminLogin').classList.remove('hidden');
+  document.querySelector('.app').classList.add('hidden');
+});
+$('adminLoginForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  socket.emit('admin:login', { password: $('adminPassword').value });
+});
+socket.on('disconnect', () => {
+  $('adminLogin').classList.remove('hidden');
+  document.querySelector('.app').classList.add('hidden');
+});
 socket.on('host:state', (s) => {
   state = s;
   if (state.config) {
     $('cfgMaxPlayers').value = state.config.maxPlayers;
-    $('cfgRoll').value = state.config.rollSeconds || 6;
-    $('cfgAutoRoll').value = state.config.autoRollSeconds || 2;
+    $('cfgMaxPerPlayer').value = state.config.maxTicketsPerPlayer || 3;
+    $('cfgRoll').value = state.config.rollSeconds || 4.5;
+    $('cfgAutoRoll').value = state.config.autoRollSeconds || 9;
     $('cfgBet').value = state.config.betPerTicket;
+    $('cfgMaxWinners').value = state.config.maxWinners || 0;
   }
+  applyConfigLock();
   $('cfgPrize').textContent = fmt(state.prize);
+  setBtnLabel('btnRules', state.rulesVisible ? 'Tắt luật chơi TV' : 'Bật luật chơi TV');
+  setBtnLabel('btnLeaderboard', state.leaderboardVisible
+    ? 'Ẩn bảng xếp hạng TV'
+    : 'Hiện bảng xếp hạng TV');
+  if (typeof state.sfxEnabled === 'boolean') sfxEnabled = state.sfxEnabled;
+  setBtnLabel('btnSfx', sfxEnabled ? 'Âm thanh lồng cầu: Bật' : 'Âm thanh lồng cầu: Tắt');
+  autoCollapseConfig(); // ván đã bắt đầu -> thu gọn ô cài đặt cho thoáng
   renderAll();
-  // Khi tải lại trang, hiển thị số mới nhất đã xổ (nếu có)
-  if (state.drawn && state.drawn.length && $('bigNumber').querySelector('.placeholder')) {
-    renderBigNumber(state.drawn[state.drawn.length - 1], false);
-    $('stageStatus').textContent = `Số mới nhất: ${pad(state.drawn[state.drawn.length - 1])}`;
-  }
 });
 
 socket.on('draw:rolling', ({ duration, min, max }) => {
@@ -253,20 +576,21 @@ socket.on('draw:rolling', ({ duration, min, max }) => {
 
 socket.on('draw:cancel', () => {
   stopRoll();
-  $('stageStatus').textContent = 'Đã hủy lượt quay.';
 });
 
 socket.on('draw:result', ({ number }) => {
+  const announcement = window.LotoAnnouncer.announcement(number, announcerStyleIndex);
+  // TV vừa tắt hẳn tiếng gió/va đập tại khoảnh khắc bi được hút lên ống;
+  // chờ fade-out đó xong rồi mới để Bot đọc số để giọng luôn rõ.
+  setTimeout(() => speakText(announcement.text, announcement), 180);
   stopRoll();
-  renderBigNumber(number, true);
-  $('stageStatus').textContent = `Số vừa xổ: ${pad(number)} 🎉`;
   beep('draw');
 });
 
 socket.on('draw:error', ({ message }) => {
   toast(message);
-  $('stageStatus').textContent = message;
 });
+socket.on('settings:error', ({ message }) => toast(message));
 
 socket.on('host:kinh', ({ winners, latest }) => {
   state.winners = winners;
@@ -275,7 +599,6 @@ socket.on('host:kinh', ({ winners, latest }) => {
     toast(`🎉 ${w.name} KINH hàng ${w.row} (thứ ${w.position})!`);
   });
   beep('kinh');
-  $('stageStatus').textContent = '🎉 CÓ NGƯỜI KINH! Chúc mừng! 🎉';
 });
 
 socket.on('host:players', ({ players }) => {
@@ -284,23 +607,53 @@ socket.on('host:players', ({ players }) => {
   renderStats();
 });
 
+let kinhBannerTimer;
+function showKinhBanner(message) {
+  const box = $('kinhBanner');
+  if (!box) { toast(message); return; }
+  box.textContent = message;
+  box.classList.remove('hidden');
+  box.classList.add('show');
+  clearTimeout(kinhBannerTimer);
+  kinhBannerTimer = setTimeout(() => hideKinhBanner(), 6000);
+}
+function hideKinhBanner() {
+  const box = $('kinhBanner');
+  if (!box) return;
+  box.classList.remove('show');
+  box.classList.add('hidden');
+}
+
+// Chưa đủ người Kinh: banner phụ, tự xổ VẪN chạy tiếp.
+socket.on('kinh:progress', ({ message }) => {
+  if (message) showKinhBanner(message);
+});
+socket.on('kinh:clear', () => {
+  hideKinhBanner();
+  closeResult();
+});
+
 socket.on('host:ack', ({ name }) => {
-  acks.unshift({ name, time: Date.now() });
-  renderAcks();
   toast(`📱 ${name} đã phản hồi từ điện thoại!`);
 });
 
-socket.on('game:reset', () => {
-  renderBigNumber(null, false);
-  $('stageStatus').textContent = 'Ván mới đã bắt đầu. Quét QR để tham gia!';
-  acks = [];
-  renderAcks();
-  toast('🔄 Đã bắt đầu ván mới!');
+socket.on('game:reset', (payload) => {
+  hideKinhBanner();
+  configAutoCollapsed = false;
+  applyConfigLock();
+  toast(payload && payload.saved
+    ? '🔄 Đã lưu ván trước đó và bắt đầu ván mới!'
+    : '🔄 Đã bắt đầu ván mới!');
 });
 
 socket.on('game:finished', () => {
   toast('🏁 Đã kết thúc và lưu ván vào lịch sử!');
-  $('stageStatus').textContent = 'Ván đã kết thúc. Bấm "Ván mới" để chơi tiếp.';
+});
+socket.on('game:limit-reached', ({ maxWinners, winnerCount }) => {
+  toast(`🏆 Đã đủ ${winnerCount || maxWinners}/${maxWinners} người KINH — tiền thưởng đã chia đều.`);
+});
+socket.on('admin:next-round-done', ({ saved }) => {
+  if (!saved) toast('⚠️ Ván chưa đủ KINH đã được hủy để bắt đầu ván mới.');
 });
 
 /* ---------------------- Điều khiển ---------------------- */
@@ -308,33 +661,34 @@ $('btnDraw').addEventListener('click', () => {
   socket.emit('draw:request', {});
 });
 
-$('cfgRoll').addEventListener('change', () => {
-  socket.emit('settings:update', { rollSeconds: $('cfgRoll').value });
-});
-$('cfgAutoRoll').addEventListener('change', () => {
-  socket.emit('settings:update', { autoRollSeconds: $('cfgAutoRoll').value });
-});
+// Một nút duy nhất thay cho "Ván mới" / "Lưu & Bắt đầu" / "Kết thúc & Lưu".
+function nextRound() {
+  closeResult();
+  const limit = Number(state.config && state.config.maxWinners) || 0;
+  const wins = (state.winners || []).length;
+  const complete = !!state.maxWinnersReached || (limit > 0 ? wins >= limit : wins > 0);
+  if (!complete && !confirm('Ván hiện tại chưa đủ người Kinh. Bạn có chắc muốn hủy ván này và bắt đầu ván mới?')) return;
+  socket.emit('admin:next-round');
+}
+$('btnNextRoundMain')?.addEventListener('click', nextRound);
+$('btnNextRound')?.addEventListener('click', nextRound);
 
-$('btnApplyConfig').addEventListener('click', () => {
-  socket.emit('config:update', {
-    maxPlayers: $('cfgMaxPlayers').value,
-    rollSeconds: $('cfgRoll').value,
-    autoRollSeconds: $('cfgAutoRoll').value,
-    betPerTicket: $('cfgBet').value,
-  });
+$('btnToggleConfig')?.addEventListener('click', () => {
+  const collapsed = !$('configPanel').classList.contains('collapsed');
+  setConfigCollapsed(collapsed);
 });
-
-$('btnNew').addEventListener('click', () => socket.emit('game:new'));
-$('btnTV').addEventListener('click', () => window.open('/tv.html', '_blank'));
-$('btnFinish').addEventListener('click', () => socket.emit('game:finish'));
+$('btnRules').addEventListener('click', () => socket.emit('tv:rules', { visible: !state.rulesVisible }));
+$('btnLeaderboard').addEventListener('click', () =>
+  socket.emit('tv:leaderboard', { visible: !state.leaderboardVisible }));
 
 /* ---------------------- Tự xổ đến khi có KINH ---------------------- */
 let autoRunning = false;
 function setAutoUI(running) {
   autoRunning = !!running;
-  $('btnAuto').textContent = running ? '⏹ DỪNG TỰ XỔ' : '🤖 TỰ XỔ ĐẾN KHI CÓ KINH';
+  setBtnLabel('btnAuto', running ? 'DỪNG TỰ XỔ' : 'TỰ XỔ ĐẾN KHI CÓ KINH');
   $('btnAuto').classList.toggle('btn-danger', !!running);
-  $('btnDraw').disabled = !!running;
+  $('btnDraw').disabled = !!running || !(state.playerCount || 0) || !!state.maxWinnersReached;
+  $('btnAuto').disabled = !(state.playerCount || 0) && !running || !!state.maxWinnersReached;
 }
 $('btnAuto').addEventListener('click', () => {
   socket.emit(autoRunning ? 'auto:stop' : 'auto:start');
@@ -348,15 +702,8 @@ $('resultModal').addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeResult(); closePreview(); }
 });
-$('btnNextRound').addEventListener('click', () => {
-  closeResult();
-  socket.emit('game:new');
-  toast('🔄 Ván mới đã tạo. Chờ người chơi nhận vé rồi bấm Tự xổ!');
-});
-
 socket.on('auto:state', ({ running }) => {
   setAutoUI(running);
-  if (running) $('stageStatus').textContent = '🤖 Đang tự xổ… sẽ dừng khi có người KINH';
 });
 
 socket.on('auto:stopped', (data) => {
@@ -386,7 +733,6 @@ socket.on('auto:stopped', (data) => {
     toast(`🎉 ${winnerCount} hàng kinh! Tổng giải ${fmt(pool)}`);
     beep('kinh');
   }
-  $('stageStatus').textContent = cancelled ? 'Đã dừng tự xổ.' : '🏁 Lượt xổ kết thúc · Xem tổng kết';
 });
 
 /* ---------------------- Xem trước điện thoại ---------------------- */
@@ -404,14 +750,4 @@ $('previewModal').addEventListener('click', (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closePreview();
-});
-
-document.querySelectorAll('.tab').forEach((tab) => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
-    tab.classList.add('active');
-    const t = tab.dataset.tab;
-    $('tabHistory').classList.toggle('hidden', t !== 'history');
-    $('tabAcks').classList.toggle('hidden', t !== 'acks');
-  });
 });

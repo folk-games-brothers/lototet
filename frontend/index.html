@@ -4,11 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Màn hình chính - Xổ Lô Tô Tết</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <div id="adminLogin" class="admin-login">
+    <form id="adminLoginForm">
+      <h2>🔐 Đăng nhập trang quản trị</h2>
+      <label for="adminPassword">Mật khẩu</label>
+      <input id="adminPassword" type="password" autocomplete="current-password" required />
+      <button class="btn btn-primary" type="submit">Đăng nhập</button>
+      <p id="adminLoginError" role="alert"></p>
+    </form>
+  </div>
   <div id="toast" class="toast"></div>
-  <div class="app">
+  <div id="kinhBanner" class="kinh-banner hidden" role="status" aria-live="polite"></div>
+  <div class="app hidden">
     <header class="topbar">
       <div class="brand">
         <div class="logo">🧧</div>
@@ -26,26 +37,83 @@
       </div>
     </header>
 
-    <!-- Ô số vừa xổ: nằm GIỮA màn hình, toàn chiều rộng -->
-    <div class="stage-hero">
-      <div class="stage">
-        <div class="stage-label">SỐ VỪA XỔ</div>
-        <div id="bigNumber" class="big-number"><span class="placeholder">--</span></div>
-        <div id="stageStatus" class="stage-status">Sẵn sàng. Bấm "XỔ SỐ" để bắt đầu!</div>
-      </div>
-    </div>
-
     <div class="layout">
-      <!-- Cột trái: điều khiển + các số đã xổ -->
+      <!-- Cột trái: điều khiển -->
       <div>
-        <div class="controls">
-          <button id="btnDraw" class="btn btn-primary">🎲 XỔ SỐ NGAY</button>
-          <button id="btnAuto" class="btn btn-ghost" style="grid-column:1/-1">🤖 TỰ XỔ ĐẾN KHI CÓ KINH</button>
-          <div class="config-grid" style="grid-column:1/-1">
-            <div class="field">
-              <label>Số vé (tối đa)</label>
+        <!-- Cụm 1: thao tác chính (ưu tiên cao nhất) -->
+        <section class="control-group control-primary">
+          <div class="group-title">ĐIỀU KHIỂN CHÍNH</div>
+          <div class="main-actions">
+            <button id="btnDraw" class="btn btn-primary">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1"/><circle cx="15.5" cy="8.5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8.5" cy="15.5" r="1"/><circle cx="15.5" cy="15.5" r="1"/></svg>
+              <span class="btn-label">XỔ SỐ NGAY</span>
+            </button>
+            <button id="btnAuto" class="btn btn-ghost">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.9 4.9l2.8 2.8"/><path d="M16.3 16.3l2.8 2.8"/><path d="M2 12h4"/><path d="M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+              <span class="btn-label">TỰ XỔ ĐẾN KHI CÓ KINH</span>
+            </button>
+          </div>
+          <!-- Gộp mọi thao tác chuyển ván vào 1 nút duy nhất -->
+          <button id="btnNextRoundMain" class="btn btn-ghost next-round-btn" type="button">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+            <span class="btn-label">QUA VÁN MỚI</span>
+          </button>
+        </section>
+
+        <!-- Cụm 2: TV & âm thanh - đúng 4 toggle đều nhau -->
+        <section class="control-group">
+          <div class="group-title">TV &amp; ÂM THANH</div>
+          <div class="toggle-grid">
+            <button id="btnRules" class="btn btn-ghost toggle-btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M2 4h7a3 3 0 0 1 3 3v13a2.5 2.5 0 0 0-2.5-2.5H2z"/><path d="M22 4h-7a3 3 0 0 0-3 3v13a2.5 2.5 0 0 1 2.5-2.5H22z"/></svg>
+              <span class="btn-label">Bật luật chơi TV</span>
+            </button>
+            <button id="btnLeaderboard" class="btn btn-ghost toggle-btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M6 4h12v4a6 6 0 0 1-12 0z"/><path d="M6 6H4v2a3 3 0 0 0 3 3"/><path d="M18 6h2v2a3 3 0 0 1-3 3"/><path d="M9 14v3h6v-3"/><path d="M8 20h8"/><path d="M12 17v3"/></svg>
+              <span class="btn-label">Hiện bảng xếp hạng TV</span>
+            </button>
+            <button id="btnBot" class="btn btn-ghost toggle-btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M18 6a8 8 0 0 1 0 12"/></svg>
+              <span class="btn-label">Bot đọc số: Tắt</span>
+            </button>
+            <button id="btnSfx" class="btn btn-ghost toggle-btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 10h4l5-5v14l-5-5H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+              <span class="btn-label">Âm thanh lồng cầu: Bật</span>
+            </button>
+            <button id="btnBotStyle" class="btn btn-ghost toggle-btn">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v5"/><path d="M8 22h8"/></svg>
+              <span class="btn-label">Kiểu đọc: Ngẫu nhiên</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Cài đặt: có thể thu gọn sau khi ván bắt đầu -->
+        <section class="control-group config-panel" id="configPanel">
+          <div class="group-title config-head">
+            <span>CÀI ĐẶT VÁN <span id="configSaved" class="config-saved" aria-live="polite"></span></span>
+            <span class="config-actions">
+              <button id="btnPreview" class="btn-text" type="button">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                Xem trước ĐT
+              </button>
+              <button id="btnToggleConfig" class="btn-text" type="button" aria-expanded="true">
+                <svg class="icon" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+                <span>Thu gọn</span>
+              </button>
+            </span>
+          </div>
+          <div class="config-grid" id="configBody">
+            <div class="field lockable" data-field="maxPlayers">
+              <label>Tổng kho vé phát hành <span class="field-lock" aria-hidden="true">🔒</span></label>
               <input id="cfgMaxPlayers" type="number" min="1" max="1000" value="200" />
-              <div class="hint">Vé 9 ô ngang × 9 ô dọc</div>
+              <div class="hint">Sinh mã từ V001 đến V200</div>
+              <div class="lock-note hidden">Tự mở khóa khi Qua ván mới</div>
+            </div>
+            <div class="field lockable" data-field="maxTicketsPerPlayer">
+              <label>Tối đa vé mỗi người <span class="field-lock" aria-hidden="true">🔒</span></label>
+              <input id="cfgMaxPerPlayer" type="number" min="1" max="10" value="3" />
+              <div class="hint">Giới hạn số vé một người được nhận</div>
+              <div class="lock-note hidden">Tự mở khóa khi Qua ván mới</div>
             </div>
             <div class="field">
               <label>Tổng tiền giải (tự tính)</label>
@@ -54,54 +122,60 @@
             </div>
             <div class="field">
               <label>Thời gian quay (giây)</label>
-              <input id="cfgRoll" type="number" min="2" max="15" value="6" />
-              <div class="hint">Quay nhanh rồi chậm dần · đổi không cần tạo ván mới</div>
+              <input id="cfgRoll" type="number" min="1" max="15" step="0.5" value="4.5" />
+              <div class="hint">Quay nhanh rồi chậm dần · chỉnh được trong ván</div>
             </div>
             <div class="field">
               <label>Quay tự động (giây)</label>
-              <input id="cfgAutoRoll" type="number" min="0.3" max="15" step="0.1" value="2" />
-              <div class="hint">Nhanh hơn lượt xổ tay · chỉ dùng khi Tự xổ</div>
+              <input id="cfgAutoRoll" type="number" min="1" max="30" step="0.5" value="9" />
+              <div class="hint">Luôn lớn hơn Thời gian quay ít nhất 3.5 giây</div>
             </div>
-            <div class="field">
-              <label>Mức cược mỗi vé (VNĐ)</label>
+            <div class="field lockable" data-field="betPerTicket">
+              <label>Mức cược mỗi vé (VNĐ) <span class="field-lock" aria-hidden="true">🔒</span></label>
               <input id="cfgBet" type="number" min="0" step="1000" value="5000" />
               <div class="hint">Hiện trên TV và tính vào ví người chơi</div>
+              <div class="lock-note hidden">Tự mở khóa khi Qua ván mới</div>
+            </div>
+            <div class="field lockable" data-field="maxWinners">
+              <label>Số người thắng tối đa <span class="field-lock" aria-hidden="true">🔒</span></label>
+              <input id="cfgMaxWinners" type="number" min="0" max="1000" value="2" />
+              <div class="hint">0 = dừng ngay khi có 1 người Kinh</div>
+              <div class="lock-note hidden">Tự mở khóa khi Qua ván mới</div>
             </div>
           </div>
-          <button id="btnApplyConfig" class="btn btn-ghost">💾 Lưu & Bắt đầu ván mới</button>
-        </div>
+        </section>
 
-        <div class="btn-row">
-          <button id="btnNew" class="btn btn-ghost">🔄 Ván mới</button>
-          <button id="btnPreview" class="btn btn-ghost">📱 Xem trước ĐT</button>
-          <button id="btnTV" class="btn btn-ghost">📺 Màn hình TV</button>
-          <button id="btnFinish" class="btn btn-danger">🏁 Kết thúc & Lưu</button>
-        </div>
-
-        <div class="panel" style="margin-top:16px">
-          <h2>🔢 Các số đã xổ (lượt xổ được lưu)</h2>
-          <div id="drawnGrid" class="number-grid">
-            <div class="empty">Chưa có số nào được xổ.</div>
-          </div>
-        </div>
+        <section class="control-group danger-zone">
+          <div class="group-title">VÙNG NGUY HIỂM · KHÔNG THỂ HOÀN TÁC</div>
+          <button id="btnWipeAllData" class="btn btn-danger" type="button">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            <span>Xóa toàn bộ dữ liệu người chơi</span>
+          </button>
+          <div class="hint">Xóa ví, vé, lịch sử nạp/thưởng/nợ và thành tích.</div>
+        </section>
       </div>
 
-      <!-- Cột phải: QR + lịch sử + người thắng -->
+      <!-- Cột phải: người chơi, người thắng và lịch sử -->
       <div>
         <div class="panel">
-          <h2>📱 Quét mã để tham gia</h2>
-          <div class="qr-wrap">
-            <div id="qrBox" class="qr-box">
-              <img id="qrImg" alt="QR" src="" />
+          <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Người chơi tham gia <span id="playerNote" class="h2-note"></span>
+            <button id="btnKickAll" class="btn-text btn-text-danger" type="button">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+              Kick tất cả
+            </button>
+          </h2>
+          <div class="player-toolbar">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="playerSearch" type="search" placeholder="Tìm tên hoặc mã vé (VD: V001)" autocomplete="off" />
+            <div class="player-filters" role="tablist" aria-label="Lọc người chơi">
+              <button class="filter-tab active" data-filter="all" type="button">Tất cả</button>
+              <button class="filter-tab" data-filter="unlocked" type="button">Chưa chốt</button>
+              <button class="filter-tab" data-filter="debt" type="button">Đang nợ</button>
             </div>
-            <div id="qrUrl" class="qr-url">Đang tạo mã QR...</div>
-            <div class="qr-tip">Mở camera điện thoại quét mã → điền tên → nhận vé ngay.</div>
           </div>
-        </div>
-
-        <div class="panel" style="margin-top:16px">
-          <h2>✅ Người chơi đã chốt <span id="playerNote" style="font-size:12px;text-transform:none;color:#ffcf8a"></span></h2>
-          <div id="playerList" class="history-list" style="max-height:200px">
+          <div id="playerList" class="player-list">
             <div class="empty">Chưa có ai chốt vé.</div>
           </div>
         </div>
@@ -114,15 +188,39 @@
         </div>
 
         <div class="panel" style="margin-top:16px">
-          <div class="tab-bar">
-            <div class="tab active" data-tab="history">📜 Lịch sử ván</div>
-            <div class="tab" data-tab="acks">✅ Phản hồi</div>
+          <h2>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M6 4h12v4a6 6 0 0 1-12 0z"/><path d="M6 6H4v2a3 3 0 0 0 3 3"/><path d="M18 6h2v2a3 3 0 0 1-3 3"/><path d="M9 14v3h6v-3"/><path d="M8 20h8"/><path d="M12 17v3"/></svg>
+            Bảng xếp hạng tiền thắng
+            <button id="btnResetAchievements" class="btn-text" type="button">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+              Reset thành tích
+            </button>
+          </h2>
+          <div id="adminLeaderboard" class="admin-leaderboard">
+            <div class="empty">Chưa có ai ghi nhận thành tích.</div>
           </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px">
+          <h2>📜 LỊCH SỬ VÁN</h2>
           <div id="tabHistory" class="history-list"></div>
-          <div id="tabAcks" class="history-list hidden"></div>
         </div>
       </div>
     </div>
+
+  </div>
+
+  <div id="walletModal" class="preview-modal" role="dialog" aria-modal="true" aria-labelledby="walletModalTitle">
+    <form id="walletModalForm" class="result-box wallet-modal-box">
+      <h2 id="walletModalTitle">Nạp tiền</h2>
+      <div id="walletModalPlayer" class="result-meta"></div>
+      <label for="walletAmount">Số tiền (VNĐ)</label>
+      <input id="walletAmount" type="number" min="1" step="1000" required />
+      <div class="btn-row" style="grid-template-columns:1fr 1fr; margin-top:14px">
+        <button id="walletModalSubmit" class="btn btn-primary" type="submit">Xác nhận</button>
+        <button id="btnCloseWalletModal" class="btn btn-ghost" type="button">Hủy</button>
+      </div>
+    </form>
   </div>
 
   <!-- Modal tổng kết lượt tự xổ -->
@@ -132,7 +230,7 @@
       <div id="resultMeta" class="result-meta"></div>
       <div id="resultList" class="history-list" style="max-height:40vh"></div>
       <div class="btn-row" style="grid-template-columns:1fr 1fr; margin-top:14px">
-        <button id="btnNextRound" class="btn btn-primary">🔄 QUAY TIẾP LƯỢT MỚI</button>
+        <button id="btnNextRound" class="btn btn-primary">🔄 QUA VÁN MỚI</button>
         <button id="btnCloseResult" class="btn btn-ghost">ĐÓNG</button>
       </div>
     </div>
@@ -154,6 +252,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/announcer.js"></script>
   <script src="/js/host.js"></script>
 </body>
 </html>

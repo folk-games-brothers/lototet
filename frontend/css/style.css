@@ -137,71 +137,12 @@ body::before {
   align-items: center;
   gap: 8px;
 }
-
-/* ---------------------- Màn hình xổ số ---------------------- */
-.stage-hero {
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 20px 28px 0;
-}
-@media (max-width: 980px) {
-  .stage-hero { padding: 16px 16px 0; }
-}
-.stage {
-  position: relative;
-  text-align: center;
-  padding: 26px 16px 22px;
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255,212,94,.16), transparent 55%),
-    linear-gradient(180deg, rgba(107,10,13,.6), rgba(74,16,8,.5));
-  border: 2px solid var(--gold-deep);
-  overflow: hidden;
-}
-.stage::after {
-  content: "🧧  🏮  🌸  🎊  🧧  🏮  🌸";
-  display: block;
-  margin-top: 10px;
-  font-size: 20px;
-  letter-spacing: 14px;
-  opacity: .7;
-}
-.stage-label { font-size: 15px; color: #ffd9a0; letter-spacing: 3px; }
-
-.big-number {
-  font-family: 'Baloo 2', 'Be Vietnam Pro', sans-serif;
-  font-size: 190px;
-  line-height: 1;
-  font-weight: 900;
-  color: var(--gold);
-  font-variant-numeric: tabular-nums;
-  text-shadow:
-    0 0 24px rgba(255,212,94,.55),
-    0 6px 0 #b8860b,
-    0 12px 26px rgba(0,0,0,.55);
-  margin: 10px 0 4px;
-  letter-spacing: 6px;
-  transition: transform .12s ease;
-}
-.big-number.spinning {
-  filter: blur(1.5px);
-  opacity: .92;
-  text-shadow: 0 0 34px rgba(255,212,94,.5), 0 6px 0 rgba(184,134,11,.75);
-}
-.big-number.rolling { animation: roll .6s ease; }
-.big-number.pop { animation: pop .5s cubic-bezier(.2,1.6,.4,1); }
-@keyframes roll {
-  0% { transform: scale(.6) rotate(-6deg); opacity: .2; }
-  100% { transform: scale(1) rotate(0); opacity: 1; }
-}
+/* ---------------------- Hiệu ứng dùng chung ---------------------- */
 @keyframes pop {
   0% { transform: scale(.7); }
   60% { transform: scale(1.18); }
   100% { transform: scale(1); }
 }
-.big-number .placeholder { font-size: 120px; opacity: .35; }
-
-.stage-status { font-size: 14px; color: #ffcf8a; min-height: 20px; }
 
 /* ---------------------- Nút điều khiển ---------------------- */
 .controls {
@@ -245,6 +186,62 @@ body::before {
 .btn-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 @media (max-width: 980px) { .btn-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 520px) { .btn-row { grid-template-columns: 1fr; } }
+
+/* ---------------------- Host control panel: phân nhóm ---------------------- */
+.icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.btn .icon { width: 20px; height: 20px; }
+.btn-label { white-space: nowrap; }
+.control-group {
+  border: 1px solid rgba(255,212,94,.28);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
+  background: rgba(60,10,8,.25);
+}
+.control-group:first-child { margin-top: 16px; }
+.control-primary { border-color: rgba(255,212,94,.7); box-shadow: 0 0 0 1px rgba(255,212,94,.12), 0 8px 24px rgba(0,0,0,.25); }
+.control-manage { border: 1px dashed rgba(255,212,94,.65); background: rgba(90,12,12,.32); }
+.group-title {
+  font-family: 'Baloo 2', 'Be Vietnam Pro', sans-serif;
+  font-size: 12px; font-weight: 800; letter-spacing: 1.6px;
+  color: var(--gold); text-transform: uppercase; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.group-title span { font-size: 11px; letter-spacing: 0; text-transform: none; color: #ffb98a; font-weight: 600; }
+.main-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.main-actions .btn-primary { grid-column: auto; font-size: 18px; padding: 16px 10px; }
+.main-actions .btn-ghost { font-size: 15px; padding: 16px 10px; }
+.toggle-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.toggle-grid .btn { font-size: 12px; padding: 12px 6px; flex-direction: column; gap: 6px; min-height: 76px; }
+.manage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.manage-grid .btn { font-size: 13px; padding: 14px 8px; }
+@media (max-width: 980px) {
+  .toggle-grid { grid-template-columns: repeat(2, 1fr); }
+  .main-actions { grid-template-columns: 1fr; }
+  .manage-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .toggle-grid { grid-template-columns: 1fr; } }
+
+/* Nút dạng text/outline nhỏ */
+.btn-text {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: 1px solid rgba(255,212,94,.45);
+  color: var(--gold); border-radius: 8px; padding: 4px 9px;
+  font-family: 'Baloo 2', 'Be Vietnam Pro', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: background .15s ease, filter .15s ease;
+}
+.btn-text .icon { width: 14px; height: 14px; }
+.btn-text:hover { background: rgba(255,212,94,.12); }
+.btn-text-danger { border-color: rgba(224,90,90,.6); color: #ff9a9a; margin-left: auto; }
+.btn-text-danger:hover { background: rgba(180,40,40,.22); }
+.h2-note { font-size: 12px; text-transform: none; color: #ffcf8a; font-weight: 600; letter-spacing: 0; }
+
+/* Config thu gọn */
+.config-head { cursor: default; justify-content: space-between; }
+.config-actions { display: inline-flex; gap: 6px; margin-left: auto; }
+.config-panel.collapsed .config-grid { display: none; }
+.config-panel.collapsed #btnToggleConfig .icon { transform: rotate(180deg); }
 
 /* ---------------------- Modal xem trước điện thoại ---------------------- */
 .preview-modal {
@@ -332,6 +329,29 @@ body::before {
   color: var(--gold); font-family: 'Baloo 2', sans-serif;
   font-size: 20px; font-weight: 800; text-align: center;
 }
+/* Auto-save indicator and in-round locks */
+.config-saved {
+  font-size: 11px; color: #7fe0a0; opacity: 0; transition: opacity .3s ease;
+  margin-left: 6px; text-transform: none; letter-spacing: 0;
+}
+.config-saved.show { opacity: 1; }
+.field-lock { display: none; font-size: 12px; margin-left: 4px; }
+.field.is-locked { opacity: .62; }
+.field.is-locked input { cursor: not-allowed; filter: grayscale(.4); }
+.field.is-locked .field-lock { display: inline; }
+.lock-note {
+  margin-top: 4px; font-size: 10px; color: #ffc27a; font-style: italic;
+}
+.next-round-btn { width: 100%; margin-top: 10px; font-size: 15px; padding: 12px; }
+.kinh-banner {
+  position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px);
+  z-index: 900; max-width: min(92vw, 760px); padding: 10px 20px;
+  border-radius: 999px; background: linear-gradient(90deg, #7a1010, #b81c1c);
+  border: 1px solid var(--gold); color: #fff3cf; font-size: 14px; font-weight: 700;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5); opacity: 0; pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease; text-align: center;
+}
+.kinh-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ---------------------- QR ---------------------- */
 .qr-wrap { text-align: center; }
@@ -373,7 +393,90 @@ body::before {
   color: #ffe6bd;
 }
 .history-item small { color: #e8b98a; }
+.admin-player-row { display: flex; flex-direction: column; align-items: stretch; }
+.admin-player-row > small { display: block; overflow-wrap: anywhere; }
 .empty { color: #e8b98a; font-size: 13px; font-style: italic; text-align: center; padding: 14px; }
+
+/* ---------------------- Danh sách người chơi: compact accordion ---------------------- */
+.player-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.player-toolbar > .icon { width: 16px; height: 16px; color: var(--gold); flex: none; }
+.player-toolbar input[type="search"] {
+  flex: 1; min-width: 0; padding: 6px 9px; font-size: 12px;
+  border-radius: 8px; border: 1px solid rgba(255,212,94,.4);
+  background: rgba(30,6,5,.6); color: #fff3d1;
+}
+.player-toolbar input[type="search"]::placeholder { color: #c99a70; }
+.player-toolbar input[type="search"]:focus { outline: none; border-color: var(--gold); }
+.player-filters { display: flex; gap: 4px; flex: none; }
+.filter-tab {
+  font-family: 'Baloo 2', 'Be Vietnam Pro', sans-serif;
+  font-size: 11px; font-weight: 700; padding: 5px 8px;
+  border-radius: 7px; cursor: pointer; white-space: nowrap;
+  border: 1px solid rgba(255,212,94,.35);
+  background: transparent; color: #ffd9a0;
+}
+.filter-tab:hover { background: rgba(255,212,94,.1); }
+.filter-tab.active { background: var(--gold); color: #5a0a0a; border-color: var(--gold); }
+
+.player-list {
+  max-height: 360px; overflow-y: auto; font-size: 13px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,212,94,.5) transparent;
+}
+.player-list::-webkit-scrollbar { width: 6px; }
+.player-list::-webkit-scrollbar-track { background: rgba(255,255,255,.03); border-radius: 6px; }
+.player-list::-webkit-scrollbar-thumb { background: rgba(255,212,94,.45); border-radius: 6px; }
+.player-list::-webkit-scrollbar-thumb:hover { background: rgba(255,212,94,.7); }
+
+.player-accordion {
+  border-bottom: 1px dashed rgba(255,212,94,.2);
+  background: rgba(255,255,255,.02);
+  border-radius: 8px; margin-bottom: 4px;
+}
+.player-accordion.is-open { background: rgba(255,212,94,.07); }
+.player-row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 6px; cursor: pointer; min-height: 40px;
+  color: #ffe6bd;
+}
+.player-row:hover { background: rgba(255,212,94,.08); }
+.player-chevron { width: 14px; height: 14px; color: var(--gold); flex: none; transition: transform .15s ease; }
+.player-accordion.is-open .player-chevron { transform: rotate(90deg); }
+.player-name { flex: 1; min-width: 0; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-tickets { font-size: 12px; color: #ffd9a0; white-space: nowrap; }
+.player-badge {
+  font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
+.badge-locked { background: rgba(34,197,94,.18); color: #9bedae; border: 1px solid rgba(34,197,94,.5); }
+.badge-unlocked { background: rgba(255,212,94,.14); color: #ffe08a; border: 1px solid rgba(255,212,94,.45); }
+.badge-debt { background: rgba(220,38,38,.16); color: #ff9a9a; border: 1px solid rgba(220,38,38,.5); }
+.player-kick { flex: none; }
+.player-detail { display: none; padding: 6px 8px 10px 26px; }
+.player-accordion.is-open .player-detail { display: block; }
+.player-detail .admin-ticket-codes { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.player-detail .admin-player-finance { margin-top: 0; }
+.admin-ticket-code.muted { opacity: .6; }
+
+/* ---------------------- Bảng xếp hạng & vùng nguy hiểm ---------------------- */
+.admin-leaderboard { font-size: 13px; }
+.admin-leader-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 7px 6px; border-bottom: 1px dashed rgba(255,212,94,.2);
+  color: #ffe6bd;
+}
+.admin-leader-row:last-child { border-bottom: none; }
+.admin-leader-row b { color: var(--gold); font-variant-numeric: tabular-nums; }
+.danger-zone {
+  border-color: rgba(220,38,38,.55) !important;
+  background: rgba(90,12,12,.35) !important;
+}
+.danger-zone .group-title { color: #ff9a9a; }
+.danger-zone .btn-danger { width: 100%; }
+.danger-zone .hint { margin-top: 7px; color: #e8a0a0; font-size: 11px; }
+.player-detail-actions {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+}
+.player-total-won { font-size: 11px; color: #e8b98a; margin-right: auto; }
+.player-total-won b { color: var(--gold); font-variant-numeric: tabular-nums; }
 
 /* ---------------------- Người thắng ---------------------- */
 .winner-row {
@@ -416,7 +519,7 @@ body::before {
 .player-app {
   max-width: 480px;
   margin: 0 auto;
-  padding: 16px 16px 40px;
+  padding: 16px 16px 180px;
   min-height: 100vh;
 }
 .player-header { text-align: center; margin-bottom: 14px; }
@@ -431,17 +534,6 @@ body::before {
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #888; }
 .dot.online { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
 .dot.offline { background: #f87171; }
-
-.name-card {
-  background: rgba(0,0,0,.22); border: 1px solid rgba(255,212,94,.3);
-  border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;
-}
-.name-card label { font-size: 12px; color: #ffd9a0; display: block; margin-bottom: 6px; }
-.name-row { display: flex; gap: 8px; }
-.name-row input {
-  flex: 1; padding: 10px 12px; border-radius: 9px; font-size: 15px;
-  border: 1px solid rgba(255,212,94,.35); background: rgba(0,0,0,.25); color: #fff; outline: none;
-}
 
 .ticket-card {
   background: linear-gradient(160deg, rgba(255,248,231,.97), rgba(255,235,190,.95));
@@ -508,6 +600,31 @@ body::before {
 .last-draw b { font-family: 'Baloo 2', 'Be Vietnam Pro', sans-serif; display: block; font-size: 40px; color: var(--gold); margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 /* ---------------------- Overlay KINH ---------------------- */
+.toast {
+  display: none;
+  position: fixed; top: 14px; left: 0; right: 0; margin: 0 auto;
+  z-index: 1200; max-width: calc(100% - 32px); width: max-content;
+  padding: 11px 18px; border-radius: 14px;
+  background: linear-gradient(180deg, #fff3cf, #ffd98a);
+  color: #5a0a0a; border: 2px solid #a8760b;
+  box-shadow: 0 6px 0 #8a5e09, 0 12px 28px rgba(0,0,0,.45);
+  font-size: 15px; font-weight: 800; text-align: center;
+  opacity: 1; pointer-events: none;
+}
+.toast.toast-error {
+  background: linear-gradient(180deg, #ffe3e3, #ffb3ad);
+  color: #6b0f0f; border-color: #c22b2b; box-shadow: 0 6px 0 #8e1f1f, 0 12px 28px rgba(0,0,0,.45);
+}
+.toast.toast-success {
+  background: linear-gradient(180deg, #e5ffec, #b8f0c8);
+  color: #124a25; border-color: #208a46; box-shadow: 0 6px 0 #166634, 0 12px 28px rgba(0,0,0,.45);
+}
+.toast.show { display: block; animation: toastPop .35s cubic-bezier(.2,1.6,.4,1); }
+@keyframes toastPop {
+  from { transform: translateY(-16px) scale(.9); }
+  to { transform: translateY(0) scale(1); }
+}
+
 .overlay {
   position: fixed; inset: 0; z-index: 1000;
   background: radial-gradient(circle at 50% 40%, rgba(212,31,43,.96), rgba(107,10,13,.98));
@@ -568,6 +685,12 @@ body::before {
   background: linear-gradient(180deg, #b7f0c8, #74d192);
   border-color: var(--green); color: #0c5e30;
 }
+@keyframes number-drop-in {
+  0% { transform: translateY(-28px) scale(.72); opacity: .15; }
+  65% { transform: translateY(4px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.loto-cell.drop-in { animation: number-drop-in 420ms cubic-bezier(.2,.8,.2,1) both; }
 .row-badge {
   font-size: 8px; font-weight: 800; padding: 2px 3px; border-radius: 4px;
   white-space: nowrap; flex: none;
@@ -591,18 +714,15 @@ body::before {
 .wallet-grid div { text-align: center; }
 .wallet-grid span { display: block; font-size: 10px; color: #e8b98a; }
 .wallet-grid b { font-size: 13px; color: #fff; font-variant-numeric: tabular-nums; }
-.wallet-recharge { display: flex; gap: 8px; margin-top: 10px; }
-.wallet-recharge input {
-  flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; font-size: 13px;
-  border: 1px solid rgba(255,212,94,.35); background: rgba(0,0,0,.25); color: #fff; outline: none;
-}
-.wallet-recharge .btn { padding: 8px 12px; font-size: 14px; }
+.wallet-card .wallet-grid { margin-top: 0; }
 
 .buy-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; margin-top: 12px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 2px 10px; margin-top: 6px;
 }
-.buy-row label { font-size: 12px; color: #ffd9a0; }
+.buy-row .ticket-price { grid-column: 1; grid-row: 1; }
+.buy-row .ticket-qty-label { grid-column: 1; grid-row: 2; text-align: left; }
+.buy-row label, .buy-row .ticket-qty-label { font-size: 12px; color: #ffd9a0; }
 .buy-row select {
   padding: 8px 12px; border-radius: 9px; font-size: 14px; font-weight: 700;
   border: 1px solid rgba(255,212,94,.45); background: #4a1008; color: var(--gold);
@@ -654,3 +774,58 @@ body::before {
   80% { transform: translate(4px, 4px); }
 }
 .shake { animation: shake .5s ease 3; }
+
+.player-admin { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.admin-player-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+.admin-player-heading > span { min-width: 0; overflow-wrap: anywhere; }
+.admin-player-finance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; margin-top: 7px; font-size: 12px; }
+.admin-player-finance > div:first-child { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.admin-ticket-codes { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.admin-ticket-code {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  background: rgba(255,212,94,.14); border: 1px solid rgba(255,212,94,.35);
+  color: #fff3d1; font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.admin-ticket-line { line-height: 1.5; }
+.admin-player-finance span { display: block; color: #e8b98a; font-size: 10px; }
+.admin-player-finance b { color: #fff3d1; font-variant-numeric: tabular-nums; }
+.editable-finance { cursor: pointer; border-bottom: 1px dashed rgba(255,212,94,.5); }
+.editable-finance:hover { color: var(--gold); }
+.finance-edit-input {
+  width: 90px; padding: 2px 4px; border-radius: 4px; border: 1px solid var(--gold);
+  background: rgba(0,0,0,.4); color: #fff; font: inherit; font-variant-numeric: tabular-nums;
+}
+.wallet-modal-box { display: grid; gap: 10px; }
+.wallet-modal-box label { color: #ffe6b0; font-size: 13px; }
+.wallet-modal-box input { width: 100%; padding: 12px; border: 1px solid rgba(255,212,94,.45); border-radius: 9px; background: rgba(0,0,0,.3); color: #fff; font: inherit; }
+.mini-btn { font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,212,94,.5); background: rgba(255,212,94,.12); color: #ffe6b0; cursor: pointer; }
+.mini-btn.danger { border-color: #dc2626; color: #fecaca; background: rgba(220,38,38,.12); }
+.debt-opt { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #ffe6b0; }
+.debt-opt input { margin: 0; }
+.join-name-modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(28, 3, 5, .88); }
+.join-name-modal.hidden { display: none; }
+.join-name-modal form { width: min(100%, 380px); display: grid; gap: 14px; padding: 24px; border: 2px solid var(--gold); border-radius: 18px; background: linear-gradient(160deg, #7c0f14, #4a0b0d); box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.join-name-modal h2 { margin: 0; color: var(--gold); text-align: center; }
+.join-name-modal label { color: #ffe6b0; }
+.join-name-modal input { padding: 12px; border: 1px solid rgba(255,212,94,.5); border-radius: 9px; background: rgba(0,0,0,.25); color: #fff; font-size: 16px; }
+.buy-row-inline {
+  grid-column: 2; grid-row: 1 / 3; display: flex; flex-wrap: nowrap; align-items: center;
+  justify-content: flex-end; gap: 10px; width: auto;
+}
+.bottom-bar {
+  position: fixed;
+  bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  z-index: 50;
+  padding: 4px 12px;
+  background: linear-gradient(180deg, rgba(74,16,8,.85), rgba(74,16,8,.95));
+  border-top: 1px solid rgba(255,212,94,.4);
+  display: flex; flex-direction: column; gap: 14px;
+  box-sizing: border-box;
+}
+.buy-row-inline .btn { padding: 10px 16px; font-size: 15px; border-radius: 10px; flex: none; }
+.buy-row-inline select { padding: 10px 14px !important; font-size: 15px; border-radius: 10px; flex: none; -webkit-appearance: none; appearance: none; }
+.admin-login { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.admin-login form { width: min(100%, 380px); display: grid; gap: 12px; padding: 24px; border-radius: 16px; background: #641b13; color: #fff1d2; }
+.admin-login input { padding: 12px; border-radius: 8px; }
+.admin-login p { min-height: 1.3em; margin: 0; color: #ffd1d1; }
