@@ -96,9 +96,9 @@
       root.speechSynthesis.speak(u);
     } else {
       // Bot tắt: vẫn hiện chữ, thời lượng theo số ký tự.
+      clearFallbacks();
       const ms = Math.max(900, text.length * 58);
-      const t = setTimeout(finish, ms);
-      mascot.fallbackTimers.push(t);
+      mascot.fallbackTimers.push(setTimeout(finish, ms));
     }
   }
 
@@ -166,6 +166,7 @@
   }
 
   function onDrawStart(durationMs, openGate) {
+    clearFallbacks();
     setState('singing');
     if (root.LotoAudio && typeof root.LotoAudio.setDuck === 'function') root.LotoAudio.setDuck(true);
     const vè = SING_LINES[Math.floor(Math.random() * SING_LINES.length)];
@@ -220,13 +221,19 @@
     mascot.knownPlayers.clear();
     mascot.queue = [];
     if ('speechSynthesis' in root) { try { root.speechSynthesis.cancel(); } catch (e) {} }
-    mascot.fallbackTimers.forEach((t) => clearTimeout(t));
-    mascot.fallbackTimers = [];
+    clearFallbacks();
+    if (mascot.emptyTimer) { clearInterval(mascot.emptyTimer); mascot.emptyTimer = null; }
+    if (mascot.fewTimer) { clearInterval(mascot.fewTimer); mascot.fewTimer = null; }
     mascot.isSpeaking = false;
     lipSync(false);
     clearBubble();
     setState('normal');
     updatePlayerCount(mascot.playerCount);
+  }
+
+  function clearFallbacks() {
+    mascot.fallbackTimers.forEach((t) => clearTimeout(t));
+    mascot.fallbackTimers = [];
   }
 
   function init() {

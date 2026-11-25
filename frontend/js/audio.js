@@ -7,6 +7,8 @@
   'use strict';
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || min));
+  // Tối đa ~14 tiếng/giây, tránh dồn tiếng khi lồng cầu đảo mạnh.
+  const MIN_CLACK_GAP_MS = 72;
 
   class LotteryAudioEngine {
     constructor() {
@@ -18,6 +20,7 @@
       this.fanTimer = null;
       this.clackTimer = null;
       this.clackDeadline = 0;
+      this.lastClackAt = 0;
       this.pipe = null;
       this.pipeTimer = null;
       this.unlocked = false;
@@ -40,6 +43,8 @@
 
     // Nhiễu trắng được làm ấm bằng bộ lọc một cực (pink-ish) rồi dùng lại cho quạt/ống.
     createNoiseBuffer(seconds) {
+      // Chỉ tạo ĐÚNG 1 AudioBuffer cho toàn bộ phiên âm thanh.
+      if (this.noiseBuffer) return this.noiseBuffer;
       const ctx = this.ctx;
       if (!ctx || !ctx.createBuffer) return null;
       const length = Math.max(1, Math.floor((ctx.sampleRate || 44100) * seconds));
@@ -125,6 +130,9 @@
       lowpass.connect(gain);
       gain.connect(this.master);
       src.start(now);
+      src.onended = () => {
+        try { src.disconnect(); bandpass.disconnect(); lowpass.disconnect(); gain.disconnect(); } catch (e) {}
+      };
       this.fan = { src, gain, bandpass, lowpass };
 
       // Đảm bảo tắt ngay cả khi ván bị hủy / không có viên bi thoát ra.
@@ -152,6 +160,8 @@
     clack() {
       const ctx = this.ensureContext();
       if (!ctx || !this.enabled) return false;
+      // Throttle cứng: không quá ~14 tiếng/giây dù bị gọi dồn.
+      if (Date.now() - this.lastClackAt < MIN_CLACK_GAP_MS - 4) return false;
       const now = ctx.currentTime || 0;
       const freq = 800 + Math.random() * 1000;          // 800Hz - 1800Hz
       const osc = ctx.createOscillator();
@@ -167,6 +177,11 @@
       gain.connect(this.master);
       osc.start(now);
       osc.stop(now + 0.025);
+      // Giải phóng node ngay khi xung kết thúc để không rò rỉ bộ nhớ.
+      osc.onended = () => {
+        try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+      };
+      this.lastClackAt = Date.now();
       return true;
     }
 
@@ -178,7 +193,8 @@
       const tick = () => {
         if (!this.enabled || Date.now() > this.clackDeadline) { this.stopClacks(); return; }
         this.clack();
-        this.clackTimer = setTimeout(tick, 70 + Math.random() * 170);
+        const gap = Math.max(MIN_CLACK_GAP_MS, 85 + Math.random() * 160);
+        this.clackTimer = setTimeout(tick, gap);
       };
       this.clackTimer = setTimeout(tick, 80);
       return true;
@@ -220,10 +236,11 @@
 
       // Rung nhẹ để tiếng lăn nghe rỗng chứ không phải tiếng gió phẳng.
       let lfo = null;
+      let depth = null;
       if (ctx.createOscillator && ctx.createGain) {
         lfo = ctx.createOscillator();
         lfo.frequency.value = 8;
-        const depth = ctx.createGain();
+        depth = ctx.createGain();
         depth.gain.value = 0.025;
         lfo.connect(depth);
         depth.connect(gain.gain);
@@ -234,6 +251,13 @@
       lowpass.connect(gain);
       gain.connect(this.master);
       src.start(now);
+      src.onended = () => {
+        try {
+          src.disconnect(); bandpass.disconnect(); lowpass.disconnect(); gain.disconnect();
+          if (lfo) lfo.disconnect();
+          if (depth) depth.disconnect();
+        } catch (e) {}
+      };
       this.pipe = { src, gain, bandpass, lowpass, lfo };
       this.pipeTimer = setTimeout(() => this.stopPipeRoll(60), seconds * 1000 + 40);
       return true;
@@ -273,6 +297,9 @@
       gain.connect(this.master);
       osc.start(at);
       osc.stop(at + 0.13);
+      osc.onended = () => {
+        try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+      };
       return true;
     }
 
@@ -298,6 +325,9 @@
       gain.connect(this.master);
       osc.start(now);
       osc.stop(now + 0.52);
+      osc.onended = () => {
+        try { osc.disconnect(); gain.disconnect(); } catch (e) {}
+      };
       return true;
     }
 

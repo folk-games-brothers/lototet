@@ -14,18 +14,67 @@ const LotoAudio = window.LotoAudio || {
 
 let stateLoaded = false;
 let lastConfig = null;
+// Tránh re-render khi state không đổi (TV nhận tv:state khá thường xuyên).
+const tvRenderCache = Object.create(null);
 
 /* ============================================================
    MÔ PHỎNG VẬT LÝ LỒNG CẦU (RIGID-BODY PHYSICS)
    ============================================================ */
 const Physics = (() => {
-  const { Engine, Bodies, Body, Composite, Events } = window.Matter || {};
+  const { Engine, Bodies, Body, Composite, Events, Sleeping } = window.Matter || {};
   const canvas = $('tvPhysics');
   const ctx = canvas ? canvas.getContext('2d') : null;
 
   const WORLD_W = 1000;
   const WORLD_H = 560;
   const BALL_R = 10;
+
+  // Sprite đệm: tạo 1 lần rỗi mỗi lần vẽ gradient cho 90 bóng.
+  const SPRITE_SCALE = 2;
+  const SPRITE_SIZE = (BALL_R + 2) * 2;
+  let ballBodySprite = null;
+  const ballNumberSprites = new Map();
+  function makeSprite() {
+    if (!document || !document.createElement) return null;
+    const c = document.createElement('canvas');
+    c.width = SPRITE_SIZE * SPRITE_SCALE;
+    c.height = SPRITE_SIZE * SPRITE_SCALE;
+    const cx = c.getContext('2d');
+    cx.scale(SPRITE_SCALE, SPRITE_SCALE);
+    return { canvas: c, ctx: cx };
+  }
+  function ensureBallSprites() {
+    if (ballBodySprite) return ballBodySprite;
+    const body = makeSprite();
+    if (!body) return null;
+    const c = SPRITE_SIZE / 2;
+    const g = body.ctx.createRadialGradient(c - 3, c - 4, 1, c, c, BALL_R);
+    g.addColorStop(0, '#fffde8');
+    g.addColorStop(0.62, '#ffe08b');
+    g.addColorStop(1, '#c98122');
+    body.ctx.beginPath();
+    body.ctx.arc(c, c, BALL_R, 0, Math.PI * 2);
+    body.ctx.fillStyle = g;
+    body.ctx.fill();
+    body.ctx.lineWidth = 1;
+    body.ctx.strokeStyle = 'rgba(255,255,255,.9)';
+    body.ctx.stroke();
+    ballBodySprite = body.canvas;
+    return ballBodySprite;
+  }
+  function ensureNumberSprite(number) {
+    if (ballNumberSprites.has(number)) return ballNumberSprites.get(number);
+    const sprite = makeSprite();
+    if (!sprite) return null;
+    const c = SPRITE_SIZE / 2;
+    sprite.ctx.fillStyle = '#8a1518';
+    sprite.ctx.font = '800 10px "Baloo 2", sans-serif';
+    sprite.ctx.textAlign = 'center';
+    sprite.ctx.textBaseline = 'middle';
+    sprite.ctx.fillText(pad(Number(number)), c, c + 0.5);
+    ballNumberSprites.set(number, sprite.canvas);
+    return sprite.canvas;
+  }
 
   // Bệ đỡ dùng chung: mặt trên của bệ là đường nền cho cả lồng lẫn 5 cột.
   const BASE_TOP = 470;
@@ -70,6 +119,7 @@ const Physics = (() => {
   let slotBalls = Array.from({ length: SLOTS.minCount }, () => []);
   let slotCount = SLOTS.minCount;
   let rollingBall = null;         // { ball, number, slot, t }
+  let settleUntil = 0;            // chạy thêm vài trăm ms để bi dừng hẳn rồi mới tạm dừng
   let fanAngle = 0;
   let airUntil = 0;
   let gateOpenAt = 0;
@@ -156,7 +206,7 @@ const Physics = (() => {
   function makeCageWalls() {
     const list = [];
     const halfGapAngle = Math.asin((CAGE_GAP / 2) / CAGE.r);
-    const segments = 120;
+    const segments = 28; // đủ khít, giảm hơn 4 lần số body so với 120 đoạn
     for (let i = 0; i < segments; i++) {
       const a0 = (i / segments) * Math.PI * 2;
       const a1 = ((i + 1) / segments) * Math.PI * 2;
@@ -243,9 +293,13 @@ const Physics = (() => {
     return { x: slotCenterX(index), y: yBottom - filled * SLOTS.cell };
   }
 
+  // Chỉ chạy vật lý khi đang quay, bi đang đi trong ống, hoặc vừa xong để bi kịp ổn định.
+  function physicsActive() {
+    return rolling || !!rollingBall || settleUntil > performance.now();
+  }
   function ensureEngine() {
     if (engine) return;
-    engine = Engine.create({ positionIterations: 24, velocityIterations: 20, constraintIterations: 8, enableSleeping: false });
+    engine = Engine.create({ positionIterations: 4, velocityIterations: 3, constraintIterations: 2, enableSleeping: true });
     engine.gravity.y = 1;
     engine.gravity.scale = 0.001;
 
@@ -258,13 +312,12 @@ const Physics = (() => {
 
     Events.on(engine, 'beforeUpdate', applyForces);
     const step = 1000 / 60;
-    // Chỉ chạy mô phỏng/vẽ khi đang quay hoặc bi đang lăn; đứng yên thì không tốn CPU.
+    // Tạm dừng vòng lặp khi lồng cầu đứng yên (Runner.stop tương đương với setInterval).
     timer = setInterval(() => {
-      if (rolling || rollingBall) {
-        Engine.update(engine, step);
-        updateAnimations(step);
-        draw();
-      }
+      if (!physicsActive()) return;
+      Engine.update(engine, step);
+      updateAnimations(step);
+      draw();
     }, step);
     resize();
     window.addEventListener('resize', resize);
@@ -272,7 +325,7 @@ const Physics = (() => {
 
   /* ---------------- Lực thổi + đảo bi ---------------- */
   function applyForces() {
-    if (!rolling && !rollingBall) return;
+    if (!physicsActive()) return;
     const now = performance.now();
     if (gateOpenAt && rolling && !resultSent && engine.timing.timestamp >= gateOpenAt) {
       gateOpenAt = 0;
@@ -323,6 +376,7 @@ const Physics = (() => {
     Body.setAngularVelocity(ball, 0);
     Body.setPosition(ball, { x: CAGE.x, y: CAGE.y - CAGE.r - 2 });
     rollingBall = { ball, number, slot, t: 0, targetX, dropPoint };
+    settleUntil = performance.now() + 900;
     // Giai đoạn 1 & 2 kết thúc TRƯỚC khi Bot đọc số (draw:result đi cùng lúc này).
     LotoAudio.stopTumble();
     // Giai đoạn 3: tiếng lăn rỗng đúng bằng thời gian bi đi ống + ray tới cửa thả.
@@ -376,6 +430,7 @@ const Physics = (() => {
       Composite.remove(engine.world, rollingBall.ball);
       balls.delete(rollingBall.number);
       rollingBall = null;
+      settleUntil = Math.max(settleUntil, performance.now() + 400);
     }
   }
 
@@ -391,27 +446,18 @@ const Physics = (() => {
   }
 
   function drawBall(number, x, y, angle = 0) {
+    const body = ensureBallSprites();
+    const digits = ensureNumberSprite(Number(number));
+    if (!body || !digits) return;
+    const half = SPRITE_SIZE / 2;
     ctx.save();
     ctx.translate(x, y);
+    // Thân bóng xoay theo vật lý, chữ số giữ nguyên để đọc được từ xa.
+    ctx.save();
     ctx.rotate(angle);
-    const g = ctx.createRadialGradient(-3, -4, 1, 0, 0, BALL_R);
-    g.addColorStop(0, '#fffde8');
-    g.addColorStop(0.62, '#ffe08b');
-    g.addColorStop(1, '#c98122');
-    ctx.beginPath();
-    ctx.arc(0, 0, BALL_R, 0, Math.PI * 2);
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(255,255,255,.9)';
-    ctx.stroke();
-    // Chữ số luôn đọc được: triệt tiêu góc xoay của bóng trước khi vẽ text.
-    ctx.rotate(-angle);
-    ctx.fillStyle = '#8a1518';
-    ctx.font = '800 10px "Baloo 2", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(pad(Number(number)), 0, 0.5);
+    ctx.drawImage(body, -half, -half, SPRITE_SIZE, SPRITE_SIZE);
+    ctx.restore();
+    ctx.drawImage(digits, -half, -half, SPRITE_SIZE, SPRITE_SIZE);
     ctx.restore();
   }
 
@@ -731,6 +777,9 @@ const Physics = (() => {
       ROLL_MS = Math.round(rollMs * 0.78);
       rolling = true;
       resultSent = false;
+      settleUntil = 0;
+      // Sleeping cần được đánh thức khi bật quạt trở lại.
+      if (Sleeping && Sleeping.set) balls.forEach((ball) => Sleeping.set(ball, false));
       airUntil = Number.POSITIVE_INFINITY;
       Body.setPosition(gate, { x: GATE_CLOSED.x, y: GATE_CLOSED.y });
       // Cổ ống chỉ mở sau khi chú Dê Lửa hát xong vè (hoặc fallback timeout).
@@ -749,6 +798,7 @@ const Physics = (() => {
     cancel() {
       rolling = false;
       resultSent = false;
+      settleUntil = 0;
       airUntil = 0;
       LotoAudio.stopAll();
       if (rollingBall) { Composite.remove(engine.world, rollingBall.ball); rollingBall = null; }
@@ -772,6 +822,7 @@ const Physics = (() => {
    NGƯỜI CHIẾN THẮNG / NGƯỜI THAM GIA / BẢNG XẾP HẠNG
    ============================================================ */
 function clearWinner() {
+  tvRenderCache.winners = '';
   const box = $('tvWinner');
   box.classList.remove('has-winner');
   box.classList.add('hidden');
@@ -783,6 +834,9 @@ function clearWinner() {
 
 function showWinners(list, per) {
   if (!list || !list.length) { clearWinner(); return; }
+  const sig = JSON.stringify([list.map((w) => [w.name, w.row, w.code]), per]);
+  if (tvRenderCache.winners === sig) return;
+  tvRenderCache.winners = sig;
   const box = $('tvWinner');
   box.classList.remove('hidden');
   box.classList.add('has-winner');
@@ -801,6 +855,12 @@ function renderTvPlayers(players) {
   const box = $('tvPlayersList');
   if (!box) return;
   const list = players || [];
+  const sig = JSON.stringify(list.map((p) => [
+    p.name, p.ticketCount, p.locked, p.awaitingTicket, p.waitingNextRound,
+    p.minRemaining, p.waitingRows,
+  ]));
+  if (tvRenderCache.players === sig) return;
+  tvRenderCache.players = sig;
   if (!list.length) { box.innerHTML = '<div class="tv-empty">Chưa có ai tham gia.</div>'; }
   else {
     box.innerHTML = list.map((p) => `
@@ -916,6 +976,9 @@ function renderLeaderboard(entries) {
   const crowns = ['👑', '🥈', '🥉'];
   // Chỉ hiển thị người có totalWon > 0 (server đã lọc/sắp theo totalWon).
   const valid = (entries || []).filter((e) => Number(e.totalWon ?? e.winnings) > 0);
+  const sig = JSON.stringify(valid.map((e) => [e.name, e.totalWon ?? e.winnings]));
+  if (tvRenderCache.leaderboard === sig) return;
+  tvRenderCache.leaderboard = sig;
   box.innerHTML = valid.map((entry, index) => `
     <div class="tv-leader-row">
       <span>${crowns[index] || '🏅'} ${escapeHtmlTv(entry.name)}</span>
@@ -959,12 +1022,28 @@ function applyState(s) {
   const min = s.config && s.config.minNumber;
   const max = s.config && s.config.maxNumber;
   const gameId = s.gameId || '';
-  $('tvBet').textContent = `${fmt(s.config && s.config.betPerTicket)}/vé`;
-  Physics.ensure(min || 1, max || 90, s.drawn || [], gameId);
+  const drawn = s.drawn || [];
+  const betText = `${fmt(s.config && s.config.betPerTicket)}/vé`;
+  if (tvRenderCache.bet !== betText) {
+    tvRenderCache.bet = betText;
+    $('tvBet').textContent = betText;
+  }
+  // Không dựng lại lồng cầu nếu ván/kho số không đổi.
+  const physicsSig = `${min || 1}:${max || 90}:${gameId}:${drawn.length}`;
+  if (tvRenderCache.physics !== physicsSig) {
+    tvRenderCache.physics = physicsSig;
+    Physics.ensure(min || 1, max || 90, drawn, gameId);
+  }
   renderTvPlayers(s.participants || s.players);
-  $('tvLeaderboard').classList.toggle('hidden', !s.leaderboardVisible);
+  if (tvRenderCache.leaderVisible !== !!s.leaderboardVisible) {
+    tvRenderCache.leaderVisible = !!s.leaderboardVisible;
+    $('tvLeaderboard').classList.toggle('hidden', !s.leaderboardVisible);
+  }
   renderLeaderboard(s.leaderboard);
-  $('tvRules').classList.toggle('hidden', !s.rulesVisible);
+  if (tvRenderCache.rulesVisible !== !!s.rulesVisible) {
+    tvRenderCache.rulesVisible = !!s.rulesVisible;
+    $('tvRules').classList.toggle('hidden', !s.rulesVisible);
+  }
   if (window.LotoMascot && typeof window.LotoMascot.applyState === 'function') {
     window.LotoMascot.applyState(s);
   }
@@ -1031,6 +1110,9 @@ socket.on('tv:rules', ({ visible }) => $('tvRules').classList.toggle('hidden', !
 socket.on('draw:cancel', () => Physics.cancel());
 socket.on('game:reset', (payload) => {
   stateLoaded = false;
+  tvRenderCache.physics = '';
+  tvRenderCache.players = '';
+  tvRenderCache.leaderboard = '';
   hideKinhBanner();
   hideKinhOverlay();
   clearWinner();

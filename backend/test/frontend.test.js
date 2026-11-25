@@ -169,6 +169,53 @@ test('admin control panel: main actions + single next-round button, 4 TV/audio t
   assert.doesNotMatch(host, /setBtnLabel\([^)]*['"][🎲🤖📜🏆🔊🎤⏹]/);
 });
 
+test('performance: physics idle pause, cheap ball sprites, throttled audio, timer cleanup and DOM diffing', () => {
+  const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
+  const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
+  const audio = fs.readFileSync(path.join(frontend, 'js', 'audio.js'), 'utf8');
+  const mascot = fs.readFileSync(path.join(frontend, 'js', 'mascot.js'), 'utf8');
+  const tvHtml = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
+  const tvCss = fs.readFileSync(path.join(frontend, 'css', 'tv.css'), 'utf8');
+
+  // Matter.js: 4/3 iterations, 28 cage segments, loop paused when idle.
+  assert.match(tv, /positionIterations: 4, velocityIterations: 3/);
+  assert.match(tv, /const segments = 28/);
+  assert.match(tv, /function physicsActive\(\)/);
+  assert.match(tv, /if \(!physicsActive\(\)\) return;/);
+  assert.match(tv, /settleUntil = performance\.now\(\) \+ 900/);
+
+  // 90 bóng được vẽ sẵn vào offscreen canvas, chỉ drawImage mỗi frame.
+  assert.match(tv, /const ballNumberSprites = new Map\(\)/);
+  assert.match(tv, /ensureNumberSprite\(number\)/);
+  assert.match(tv, /ctx\.drawImage\(body, -half, -half, SPRITE_SIZE, SPRITE_SIZE\)/);
+  assert.match(tv, /ctx\.drawImage\(digits, -half, -half, SPRITE_SIZE, SPRITE_SIZE\)/);
+  assert.doesNotMatch(tv.slice(tv.indexOf('function drawBall('), tv.indexOf('function drawRect(')), /createRadialGradient/);
+
+  // Không filter/drop-shadow trên phần tử mascot chuyển động.
+  assert.doesNotMatch(tvHtml, /filter="url\(#fireGlow\)"/);
+  assert.doesNotMatch(tvCss, /\.tv-mascot\s*\{[^}]*filter:/);
+  assert.doesNotMatch(tvCss, /fireBright[^}]*filter:/);
+
+  // Mascot dọn timer cũ trước khi tạo timer mới.
+  assert.match(mascot, /function clearFallbacks\(\)/);
+  assert.match(mascot, /clearFallbacks\(\);[\s\S]*setState\('singing'\)/);
+  assert.match(mascot, /clearInterval\(mascot\.emptyTimer\)/);
+
+  // Audio: 1 noise buffer dùng lại, throttle clack, disconnect trên onended.
+  assert.match(audio, /this\.noiseBuffer = this\.createNoiseBuffer\(2\)/);
+  assert.match(audio, /if \(this\.noiseBuffer\) return this\.noiseBuffer/);
+  assert.match(audio, /MIN_CLACK_GAP_MS = 72/);
+  assert.match(audio, /osc\.onended = \(\) => \{[\s\S]*osc\.disconnect\(\); gain\.disconnect\(\)/);
+
+  // Diffing trước khi đụng DOM ở cả TV và Admin.
+  assert.match(tv, /const tvRenderCache = Object\.create\(null\)/);
+  assert.match(tv, /tvRenderCache\.players === sig/);
+  assert.match(tv, /tvRenderCache\.leaderboard === sig/);
+  assert.match(host, /function renderIfChanged\(key, signature\)/);
+  assert.match(host, /renderIfChanged\('players', sig\)/);
+  assert.match(host, /renderIfChanged\('winners', sig\)/);
+});
+
 test('TV mascot Dê Lửa Đinh Mùi 2027: inline SVG, four expressions, speech and timing hooks', () => {
   const tvHtml = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
   const tvCss = fs.readFileSync(path.join(frontend, 'css', 'tv.css'), 'utf8');
@@ -190,7 +237,7 @@ test('TV mascot Dê Lửa Đinh Mùi 2027: inline SVG, four expressions, speech 
   assert.match(tvHtml, /#FFF5E1/);
   assert.match(tvHtml, />2027</);
   assert.match(tvHtml, /url\(#fireGrad\)/);
-  assert.match(tvCss, /fireGlow/);
+  assert.match(tvHtml, /id="fireGrad"/); // gradient tĩnh, không SVG filter động
 
   // 4 trạng thái biểu cảm.
   for (const st of ['state-sad', 'state-normal', 'state-singing', 'state-excited']) {
@@ -474,8 +521,8 @@ test('TV cage uses real Matter.js rigid-body physics, not random number arrays',
   assert.match(script, /Engine\.update\(engine/);
 
   // High collision accuracy so fast-blown balls never tunnel through the cage.
-  assert.match(script, /positionIterations:\s*(2[0-9]|[3-9][0-9])/);
-  assert.match(script, /velocityIterations:\s*(1[5-9]|[2-9][0-9])/);
+  assert.match(script, /positionIterations:\s*4/);
+  assert.match(script, /velocityIterations:\s*3/);
 
   // Cage is static colliders with a single gap of 2.2 * ball radius at the top.
   assert.match(script, /CAGE_GAP\s*=\s*BALL_R\s*\*\s*2\.2/);

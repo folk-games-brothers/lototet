@@ -230,7 +230,7 @@ body.tv-body {
 @keyframes tvBallLand { from { transform: translateY(-12px) scale(1.14); } to { transform: translateY(0) scale(1); } }
 .tv-drop-layer { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
 .tv-drop-ball { position: fixed; z-index: 11; width: clamp(44px, 5.2vh, 58px); font-size: clamp(18px, 2.3vh, 25px); transition: none; }
-.tv-drop-ball.falling { filter: drop-shadow(0 8px 5px rgba(0,0,0,.45)); }
+.tv-drop-ball.falling { opacity: .95; }
 @keyframes tvPop {
   0% { transform: scale(.75); }
   60% { transform: scale(1.12); }
@@ -500,7 +500,6 @@ body.tv-body {
 .tv-mascot {
   position: fixed; bottom: 24px; left: 24px; z-index: 30;
   width: 145px; pointer-events: none;
-  filter: drop-shadow(0 6px 14px rgba(0,0,0,.45));
 }
 .mascot-bubble {
   position: absolute; bottom: 100%; left: 0; margin-bottom: 6px;
@@ -519,7 +518,7 @@ body.tv-body {
 .mascot-svg { display: block; width: 100%; height: auto; }
 .mascot-body { transform-origin: 70px 130px; animation: mascotBreathe 2.4s ease-in-out infinite; }
 @keyframes mascotBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.03); } }
-.mascot-tail, .mascot-tail-side, .mascot-horns { animation: fireFlicker 0.55s ease-in-out infinite alternate; transform-origin: center; filter: url(#fireGlow); }
+.mascot-tail, .mascot-tail-side, .mascot-horns { animation: fireFlicker 0.55s ease-in-out infinite alternate; transform-origin: center; will-change: transform, opacity; }
 @keyframes fireFlicker { 0% { transform: scale(1) rotate(-2deg); opacity: .85; } 100% { transform: scale(1.08) rotate(2deg); opacity: 1; } }
 .mascot-ear { transform-origin: center; }
 .state-singing .mascot-head { animation: headBob 0.42s ease-in-out infinite; transform-origin: 70px 78px; }
@@ -529,7 +528,7 @@ body.tv-body {
 .state-excited .mascot-ear { animation: earWave 0.3s ease-in-out infinite; }
 @keyframes earWave { 0%,100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
 .state-excited .mascot-horns, .state-excited .mascot-tail { animation: fireBright 0.25s ease-in-out infinite alternate; }
-@keyframes fireBright { 0% { transform: scale(1.1); opacity: .9; } 100% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 10px #FF6B00); } }
+@keyframes fireBright { 0% { transform: scale(1.1); opacity: .85; } 100% { transform: scale(1.25); opacity: 1; } }
 .state-sad .mascot-brows .brow-left { transform: rotate(18deg) translateY(2px); transform-origin: 59px 68px; }
 .state-sad .mascot-brows .brow-right { transform: rotate(-18deg) translateY(2px); transform-origin: 81px 68px; }
 .state-sad .mascot-eyes .eye-left, .state-sad .mascot-eyes .eye-right { transform: translateY(4px); }

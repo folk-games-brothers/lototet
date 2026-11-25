@@ -15,6 +15,13 @@ function setBtnLabel(id, text) {
 }
 
 let state = { drawn: [], winners: [], playerCount: 0, config: {}, history: [] };
+// Chỉ đụng DOM khi dữ liệu thực sự đổi (host:state phát rất thường xuyên).
+const renderCache = Object.create(null);
+function renderIfChanged(key, signature) {
+  if (renderCache[key] === signature) return false;
+  renderCache[key] = signature;
+  return true;
+}
 let botEnabled = false;
 let sfxEnabled = true;
 const announcerStyles = window.LotoAnnouncer.styles;
@@ -183,6 +190,10 @@ function stopRoll() {
 }
 
 function renderStats() {
+  const sig = JSON.stringify([state.playerCount, state.maxPlayers, (state.drawn || []).length,
+    state.waitingCount, (state.winners || []).length, state.prize,
+    state.maxWinnersReached, autoRunning]);
+  if (!renderIfChanged('stats', sig)) return;
   $('statPlayers').textContent = state.playerCount || 0;
   $('statMaxPlayers').textContent = state.maxPlayers || 200;
   $('statDrawn').textContent = (state.drawn || []).length;
@@ -195,6 +206,9 @@ function renderStats() {
 }
 
 function renderWinners() {
+  const wins = state.winners || [];
+  const sig = JSON.stringify([wins.map((w) => [w.name, w.row, w.position, w.time, w.acked]), getPerWinner()]);
+  if (!renderIfChanged('winners', sig)) return;
   const box = $('winnerList');
   const note = $('moneyNote');
   const per = getPerWinner();
@@ -230,8 +244,11 @@ function getPerWinner() {
 }
 
 function renderHistory() {
-  const box = $('tabHistory');
   const h = state.history || [];
+  const sig = JSON.stringify(h.map((g) => [g.id, g.endedAt || g.startedAt, g.players,
+    g.drawn && g.drawn.length, g.winners && g.winners.length]));
+  if (!renderIfChanged('history', sig)) return;
+  const box = $('tabHistory');
   if (!h.length) {
     box.innerHTML = '<div class="empty">Chưa có ván nào được lưu.</div>';
     return;
@@ -279,10 +296,17 @@ let playerQuery = '';
 function renderPlayers() {
   const box = $('playerList');
   const list = state.players || [];
-  $('playerNote').textContent = `(${list.length} người)`;
+  const note = `(${list.length} người)`;
+  if ($('playerNote').textContent !== note) $('playerNote').textContent = note;
   if (!box) return;
 
   const q = playerQuery.trim().toLocaleLowerCase('vi');
+  const sig = JSON.stringify([
+    list.map((p) => [p.playerId, p.name, p.code, p.codes, p.locked, p.debt, p.ticketCount,
+      p.deposited, p.winnings, p.totalWon, p.awaitingTicket, p.waitingNextRound]),
+    q, playerFilter, [...expandedPlayers],
+  ]);
+  if (!renderIfChanged('players', sig)) return;
   const filtered = list.filter((p) => {
     const codes = ticketCodesFor(p);
     if (playerFilter === 'unlocked' && p.locked) return false;
@@ -455,6 +479,8 @@ function renderAdminLeaderboard() {
   if (!box) return;
   // Server đã lọc totalWon > 0 và sắp giảm dần; vẫn lọc lại ở client cho chắc.
   const entries = (state.leaderboard || []).filter((e) => Number(e.totalWon ?? e.winnings) > 0);
+  const sig = JSON.stringify(entries.map((e) => [e.name, e.totalWon ?? e.winnings]));
+  if (!renderIfChanged('leaderboard', sig)) return;
   if (!entries.length) {
     box.innerHTML = '<div class="empty">Chưa có ai ghi nhận thành tích.</div>';
     return;
