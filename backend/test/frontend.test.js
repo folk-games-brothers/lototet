@@ -278,7 +278,7 @@ test('business audit: rounded prize, locked settings bypass, locked-only Kinh an
 
   // Admin cannot bypass hard locks through config:update (works after F5 too).
   assert.match(server, /socket\.on\('config:update', \(cfg\) => \{[\s\S]{0,400}LOCKED_FIELDS/);
-  assert.match(server, /roundStarted = game\.drawn\.length > 0 \|\| game\.tickets\.some\(\(t\) => t\.locked\)/);
+  assert.match(server, /roundStarted = game\.drawn\.length > 0 \|\| rolling \|\| game\.tickets\.some\(\(t\) => t\.locked\)/);
 
   // Only locked (chốt) tickets are matched / shown as near-Kinh; prizePool already filters locked.
   assert.match(server, /if \(!ticket\.owner \|\| !ticket\.locked\) return;/);

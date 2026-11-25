@@ -319,4 +319,80 @@ describe('Loto Tet concurrency', () => {
         consistent: totalDeposited === 20 * 10000 - totalWithdrawn && totalWinnings <= locked.prize },
     });
   });
+
+  it('settings:update bị từ chối ngay trong lúc đang quay (rolling=true)', async (t) => {
+    await config({
+      maxPlayers: 5, betPerTicket: 1000, maxWinners: 2,
+      maxTicketsPerPlayer: 1, rollSeconds: 1, autoRollSeconds: 6,
+    });
+    const { clients } = await joinPlayers(1, 'Rol');
+    await Promise.all(clients.map((client) => new Promise((resolve) => {
+      client.once('ticket:locked', resolve);
+      client.emit('ticket:lock', { playerId: 'rol-1' });
+    })));
+
+    const rolling = event(admin, 'draw:rolling', () => true, 8000);
+    admin.emit('draw:request', { manual: 7 });
+    await rolling;
+
+    const denied = event(admin, 'settings:error', (x) => /khóa trong ván/.test(x.message), 8000);
+    admin.emit('settings:update', { betPerTicket: 99999 });
+    const error = await denied;
+
+    const result = event(admin, 'draw:result', (r) => r.number === 7, 8000);
+    await result;
+    const state = await apiState();
+    assert.equal(state.config.betPerTicket, 1000, 'mức cược giữ nguyên trong lúc quay');
+    logTestIO(t, {
+      input: { action: 'settings:update', field: 'betPerTicket', value: 99999, rolling: true },
+      output: { accepted: false, message: error.message, betPerTicket: state.config.betPerTicket },
+    });
+  });
+
+  it('có ít nhất 2 người KINH cùng ván (maxWinners=2): chia đều giải và ghi totalWon', async (t) => {
+    await config({
+      maxPlayers: 10, betPerTicket: 1000, maxWinners: 2,
+      maxTicketsPerPlayer: 1, rollSeconds: 1, autoRollSeconds: 6,
+    });
+    const { clients, results } = await joinPlayers(2, 'K');
+    await Promise.all(clients.map((client) => new Promise((resolve) => {
+      client.once('ticket:locked', resolve);
+      client.emit('ticket:lock', { playerId: `k-${clients.indexOf(client) + 1}` });
+    })));
+
+    const numbers = [...new Set(results.flatMap((r) => firstRowNumbers(r.data)))];
+    const finished = event(admin, 'game:finished', () => true, 15000);
+    for (const number of numbers) {
+      if ((await apiState()).maxWinnersReached) break;
+      await manualDraw(number);
+    }
+    await finished;
+
+    const state = await apiState();
+    const fin = finances();
+    const winners = state.winners.map((w) => ({
+      name: w.name, code: w.code,
+      winnings: fin[w.name.toLocaleLowerCase('vi')].winnings,
+      totalWon: fin[w.name.toLocaleLowerCase('vi')].totalWon,
+    }));
+    assert.ok(winners.length >= 2, 'ít nhất 2 người Kinh trong cùng ván');
+    assert.equal(state.maxWinnersReached, true);
+    assert.equal(state.prizePerWinner % 1000, 0, 'giải chia làm tròn bội số 1.000đ');
+    for (const winner of winners) {
+      assert.equal(winner.winnings, state.prizePerWinner);
+      assert.equal(winner.totalWon, state.prizePerWinner);
+    }
+    logTestIO(t, {
+      input: {
+        maxWinners: 2, winners: winners.map((w) => w.name), codes: winners.map((w) => w.code),
+        lockedTickets: state.playerCount, betPerTicket: 1000, prizePool: state.prize,
+      },
+      output: {
+        winnerCount: winners.length, prizePerWinner: state.prizePerWinner,
+        roundedToThousand: state.prizePerWinner % 1000 === 0,
+        payouts: winners, totalPaid: winners.reduce((sum, w) => sum + w.winnings, 0),
+        totalWonPreserved: winners.every((w) => w.totalWon === w.winnings),
+      },
+    });
+  });
 });

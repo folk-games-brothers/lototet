@@ -1176,7 +1176,7 @@ io.on('connection', (socket) => {
   socket.on('settings:update', (s) => {
     if (!s) return;
     const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
-    const roundStarted = game.drawn.length > 0 || game.tickets.some((t) => t.locked);
+    const roundStarted = game.drawn.length > 0 || rolling || game.tickets.some((t) => t.locked);
     for (const key of LOCKED_FIELDS) {
       if (s[key] !== undefined && roundStarted) {
         socket.emit('settings:error', {
@@ -1221,7 +1221,7 @@ io.on('connection', (socket) => {
   socket.on('config:update', (cfg) => {
     // Chặn luôn đường vòng: config:update không được đổi 4 ô bị khóa trong ván.
     const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
-    const roundStarted = game.drawn.length > 0 || game.tickets.some((t) => t.locked);
+    const roundStarted = game.drawn.length > 0 || rolling || game.tickets.some((t) => t.locked);
     if (cfg && LOCKED_FIELDS.some((key) => cfg[key] !== undefined) && roundStarted) {
       socket.emit('settings:error', {
         message: 'Thông số này đã bị khóa trong ván. Tự mở khóa khi Qua ván mới.',
