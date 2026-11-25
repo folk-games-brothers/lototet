@@ -586,7 +586,9 @@ socket.on('host:state', (s) => {
   }
   applyConfigLock();
   $('cfgPrize').textContent = fmt(state.prize);
-  setBtnLabel('btnRules', state.rulesVisible ? 'Tắt luật chơi TV' : 'Bật luật chơi TV');
+  const rulesOn = !!(state.showRules ?? state.rulesVisible);
+  state.rulesVisible = rulesOn;
+  setBtnLabel('btnRules', rulesOn ? 'Tắt luật chơi TV' : 'Bật luật chơi TV');
   setBtnLabel('btnLeaderboard', state.leaderboardVisible
     ? 'Ẩn bảng xếp hạng TV'
     : 'Hiện bảng xếp hạng TV');
@@ -704,6 +706,11 @@ $('btnToggleConfig')?.addEventListener('click', () => {
   setConfigCollapsed(collapsed);
 });
 $('btnRules').addEventListener('click', () => socket.emit('tv:rules', { visible: !state.rulesVisible }));
+// Server tự tắt luật khi bắt đầu quay -> cập nhật lại nhãn nút Admin.
+socket.on('tv:rules', ({ visible }) => {
+  state.rulesVisible = !!visible;
+  setBtnLabel('btnRules', visible ? 'Tắt luật chơi TV' : 'Bật luật chơi TV');
+});
 $('btnLeaderboard').addEventListener('click', () =>
   socket.emit('tv:leaderboard', { visible: !state.leaderboardVisible }));
 

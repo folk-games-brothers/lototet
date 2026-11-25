@@ -1040,9 +1040,10 @@ function applyState(s) {
     $('tvLeaderboard').classList.toggle('hidden', !s.leaderboardVisible);
   }
   renderLeaderboard(s.leaderboard);
-  if (tvRenderCache.rulesVisible !== !!s.rulesVisible) {
-    tvRenderCache.rulesVisible = !!s.rulesVisible;
-    $('tvRules').classList.toggle('hidden', !s.rulesVisible);
+  const rulesOn = !!(s.showRules ?? s.rulesVisible);
+  if (tvRenderCache.rulesVisible !== rulesOn) {
+    tvRenderCache.rulesVisible = rulesOn;
+    $('tvRules').classList.toggle('hidden', !rulesOn);
   }
   if (window.LotoMascot && typeof window.LotoMascot.applyState === 'function') {
     window.LotoMascot.applyState(s);
@@ -1106,7 +1107,11 @@ socket.on('game:limit-reached', ({ winners, prizePerWinner }) => {
     window.LotoMascot.onKinh(winners);
   }
 });
-socket.on('tv:rules', ({ visible }) => $('tvRules').classList.toggle('hidden', !visible));
+socket.on('tv:rules', ({ visible }) => {
+  const on = !!visible;
+  tvRenderCache.rulesVisible = on;
+  $('tvRules').classList.toggle('hidden', !on);
+});
 socket.on('draw:cancel', () => Physics.cancel());
 socket.on('game:reset', (payload) => {
   stateLoaded = false;

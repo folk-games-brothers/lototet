@@ -169,6 +169,41 @@ test('admin control panel: main actions + single next-round button, 4 TV/audio t
   assert.doesNotMatch(host, /setBtnLabel\([^)]*['"][🎲🤖📜🏆🔊🎤⏹]/);
 });
 
+test('TV rules overlay: fixed four-section text, Admin sync and auto-close on draw', () => {
+  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
+  const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
+  const tvHtml = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
+  const tvCss = fs.readFileSync(path.join(frontend, 'css', 'tv.css'), 'utf8');
+
+  // Server: showRules state, alias rulesVisible, realtime emit and auto-close on draw.
+  assert.match(server, /let showRules = false/);
+  assert.match(server, /showRules,\s*\n\s*rulesVisible: showRules/);
+  assert.match(server, /function setRulesVisible\(visible\)/);
+  assert.match(server, /io\.emit\('tv:rules', \{ visible: showRules \}\)/);
+  assert.match(server, /function doDraw\([\s\S]{0,200}setRulesVisible\(false\)/);
+
+  // Admin: button label + realtime listener.
+  assert.match(host, /Tắt luật chơi TV/);
+  assert.match(host, /Bật luật chơi TV/);
+  assert.match(host, /socket\.on\('tv:rules'/);
+
+  // TV: uses showRules with alias fallback.
+  assert.match(tv, /s\.showRules \?\? s\.rulesVisible/);
+  assert.match(tv, /socket\.on\('tv:rules'/);
+
+  // Fixed, non-dynamic rule text with all 4 sections.
+  assert.match(tvHtml, /id="tvRules" class="tv-rules hidden"/);
+  assert.match(tvHtml, /LUẬT CHƠI LÔ TÔ NGÀY TẾT/);
+  assert.match(tvHtml, /1\. Nạp tiền qua Quản trò/);
+  assert.match(tvHtml, /2\. Chọn &amp; Chốt vé/);
+  assert.match(tvHtml, /3\. Cách dò số/);
+  assert.match(tvHtml, /4\. Điều kiện KINH &amp; Nhận thưởng/);
+  assert.doesNotMatch(tvHtml, /id="tvRules"[\s\S]*?\{\{|\$\{/); // không chèn số cài đặt động
+  assert.match(tvCss, /\.rules-board/);
+  assert.match(tvCss, /@keyframes rulesScaleIn/);
+});
+
 test('performance: physics idle pause, cheap ball sprites, throttled audio, timer cleanup and DOM diffing', () => {
   const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
@@ -496,7 +531,7 @@ test('TV hides empty winner banner, uses BINGO, removes footer stats, and shows 
   const css = fs.readFileSync(path.join(frontend, 'css', 'tv.css'), 'utf8');
   assert.match(html, /id="tvWinner" class="tv-winner hidden"/);
   assert.doesNotMatch(html, /Chưa có người kinh|Đang chờ người may mắn|<footer class="tv-footer"/i);
-  assert.match(html, /BINGO!/);
+  assert.match(html, /CHÚC MỪNG KINH!/);
   assert.match(script, /Chưa có ai tham gia/);
   assert.match(script, /Chưa chốt/);
   assert.match(script, /Đã chốt/);

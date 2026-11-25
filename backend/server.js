@@ -185,7 +185,7 @@ let roundStartWinners = 0;
 let botEnabled = false;
 let sfxEnabled = true;
 let announcerStyleIndex = 0;
-let rulesVisible = false;
+let showRules = false;
 let leaderboardVisible = false;
 
 // Vé dùng để XEM TRƯỚC trên trang quản lý (tách riêng, không tính vào 200 vé)
@@ -632,7 +632,8 @@ function emitHostState() {
     maxPlayers: game.config.maxPlayers,
     waitingCount: countWaiting(),
     waitingPlayers: waitingPlayers.length,
-    rulesVisible,
+    showRules,
+    rulesVisible: showRules,
     leaderboardVisible,
     leaderboard: leaderboard(),
     maxWinnersReached: game.maxWinnersReached,
@@ -651,6 +652,14 @@ function emitHostState() {
     leaderboard: leaderboardVisible ? state.leaderboard : [],
   });
   io.emit('tv:state', publicState);
+}
+
+// Bật/tắt bảng luật trên TV. Khi tắt do Admin bắt đầu quay số, TV nhận event ngay.
+function setRulesVisible(visible) {
+  const next = !!visible;
+  if (showRules === next) return;
+  showRules = next;
+  io.emit('tv:rules', { visible: showRules });
 }
 
 // Ván được coi là kết thúc khi đủ số người Kinh (hoặc maxWinners = 0 và có >= 1 Kinh).
@@ -744,6 +753,8 @@ function pickFreeTicket(exclude) {
 
 /* ---------------- Xổ số (quay rồi chốt) ---------------- */
 function doDraw(manualNumber, onDone, durationOverride) {
+  // Bắt đầu quay số thì luật chơi phải biến mất để không che lồng cầu.
+  setRulesVisible(false);
   if (game.maxWinnersReached) {
     io.emit('draw:error', { message: 'Đã đạt số người KINH tối đa của ván này.' });
     return;
@@ -1110,7 +1121,7 @@ io.on('connection', (socket) => {
       topWinners: game.topWinners || [], playerCount: lockedPlayers().length,
       issuedCount: game.tickets.filter((t) => t.owner).length,
       maxPlayers: game.config.maxPlayers, waitingCount: countWaiting(),
-      waitingPlayers: waitingPlayers.length, rulesVisible,
+      waitingPlayers: waitingPlayers.length, showRules,
       leaderboardVisible,
       leaderboard: leaderboardVisible ? leaderboard() : [],
       participants: tvParticipants(),
@@ -1122,8 +1133,7 @@ io.on('connection', (socket) => {
     sendQR(socket.id);
   });
   socket.on('tv:rules', ({ visible } = {}) => {
-    rulesVisible = Boolean(visible);
-    io.emit('tv:rules', { visible: rulesVisible });
+    setRulesVisible(Boolean(visible));
     emitHostState();
   });
   socket.on('tv:leaderboard', ({ visible } = {}) => {
@@ -1203,7 +1213,7 @@ io.on('connection', (socket) => {
     if (pendingPhysicsDraw) { clearTimeout(pendingPhysicsDraw.timer); pendingPhysicsDraw = null; }
     rolling = false;
     autoRunning = false;
-    rulesVisible = false;
+    setRulesVisible(false);
     leaderboardVisible = false;
     previewTickets = [];
     io.emit('draw:cancel');
@@ -1219,7 +1229,7 @@ io.on('connection', (socket) => {
     if (pendingPhysicsDraw) { clearTimeout(pendingPhysicsDraw.timer); pendingPhysicsDraw = null; }
     rolling = false;
     autoRunning = false;
-    rulesVisible = false;
+    setRulesVisible(false);
     leaderboardVisible = false;
     previewTickets = [];
     io.emit('draw:cancel');
@@ -1254,7 +1264,7 @@ io.on('connection', (socket) => {
     if (pendingPhysicsDraw) { clearTimeout(pendingPhysicsDraw.timer); pendingPhysicsDraw = null; }
     rolling = false;
     autoRunning = false;
-    rulesVisible = false;
+    setRulesVisible(false);
     leaderboardVisible = false;
     previewTickets = [];
     io.emit('draw:cancel');
@@ -1836,7 +1846,7 @@ app.get('/api/state', (req, res) => {
     players, winners: game.winners,
     topWinners: game.topWinners || [],
     leaderboardVisible,
-    leaderboardVisible,
+    showRules,
     leaderboard: leaderboardVisible ? leaderboard() : [],
     prize: prizePool(), prizePerWinner: prizePerWinner(),
     history: readJSON(HISTORY_FILE, []),

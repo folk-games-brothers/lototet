@@ -362,10 +362,37 @@ body.tv-body {
   border-radius: 50%; background: #27ae60; color: #fff; font-size: 11px; line-height: 1;
 }
 @keyframes tvDonutSpin { to { transform: rotate(360deg); } }
-.tv-rules { position: fixed; inset: 12% 16%; z-index: 20; display: grid; align-content: center; gap: 1rem; padding: 4vw; border: 4px solid var(--gold); border-radius: 28px; background: rgba(74,16,8,.96); color: #fff1d2; text-align: center; box-shadow: 0 0 0 100vmax rgba(20,0,0,.6); }
+/* Bảng LUẬT CHƠI: overlay trang trọng, giữa màn hình TV */
+.tv-rules {
+  position: fixed; inset: 0; z-index: 20;
+  display: grid; place-items: center; padding: 3vh 3vw;
+  background: radial-gradient(circle at center, rgba(74,16,8,.86), rgba(24,0,0,.94));
+  box-shadow: 0 0 0 100vmax rgba(20,0,0,.6);
+}
 .tv-rules.hidden { display: none; }
-.tv-rules h2 { margin: 0; color: var(--gold); font-size: clamp(32px, 5vw, 72px); }
-.tv-rules p { margin: 0; font-size: clamp(20px, 2.5vw, 36px); }
+.rules-board {
+  width: min(94vw, 1180px); max-height: 92vh; overflow: auto;
+  padding: 2.2vh 3vw; border: 4px solid var(--gold); border-radius: 28px;
+  background: linear-gradient(160deg, rgba(112,20,12,.98), rgba(62,8,8,.98));
+  color: #fff1d2; text-align: center;
+  box-shadow: 0 0 0 6px rgba(255,212,94,.12), 0 24px 70px rgba(0,0,0,.7);
+  animation: rulesScaleIn .45s cubic-bezier(.18,1.4,.4,1) both;
+}
+@keyframes rulesScaleIn { from { transform: scale(.86); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.rules-deco { font-size: clamp(18px, 2.2vw, 36px); letter-spacing: .3em; }
+.rules-title {
+  margin: .4vh 0 1.2vh; color: var(--gold);
+  font-size: clamp(28px, 4vw, 64px); line-height: 1.1; font-weight: 900;
+  text-shadow: 0 4px 18px rgba(0,0,0,.55);
+}
+.rules-list { display: grid; gap: 1.4vh; text-align: left; }
+.rules-item {
+  padding: 1.1vh 1.6vw; border-radius: 14px;
+  background: rgba(255,255,255,.07); border: 1px solid rgba(255,212,94,.35);
+}
+.rules-item b { color: #ffd977; font-size: clamp(16px, 1.8vw, 30px); }
+.rules-item p { margin: .5vh 0 0; font-size: clamp(13px, 1.45vw, 24px); line-height: 1.45; color: #fff1d2; }
+.rules-foot { margin-top: 1.4vh; color: #ffcf8a; font-size: clamp(13px, 1.4vw, 22px); }
 .tv-leaderboard { position: absolute; right: 2.5vw; top: 26vh; z-index: 4; width: clamp(220px, 22vw, 320px); max-height: 40vh; overflow: auto; padding: 10px 12px; border: 1px solid rgba(255,212,94,.45); border-radius: 14px; background: rgba(74,16,8,.78); color: #ffe6b0; }
 .tv-leaderboard h3 { margin: 0 0 8px; color: var(--gold); font-size: clamp(13px, 1.3vw, 20px); }
 .tv-leader-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; font-size: clamp(11px, 1vw, 16px); }
