@@ -110,8 +110,19 @@ function choose(items) {
 }
 
 function ask(question) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => rl.question(question, (answer) => { rl.close(); resolve(answer); }));
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    let settled = false;
+    const done = (answer) => {
+      if (settled) return;
+      settled = true;
+      rl.close();
+      resolve(answer);
+    };
+    rl.question(question, done);
+    // stdin đã đóng (ví dụ chạy script pipe) thì dùng giá trị mặc định.
+    rl.on('close', () => done(''));
+  });
 }
 
 function waitEnter() {

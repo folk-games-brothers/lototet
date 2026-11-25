@@ -177,8 +177,9 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   })));
 
   hr('3) Quay số liên tục');
-  // Giả lập TV trả kết quả bóng lăn cho server.
-  admin.on('draw:rolling', ({ mode, duration, drawn, gameId } = {}) => {
+  // Giả lập TV trả kết quả bóng lăn NGAY (không đợi autoRollSeconds) để test nhanh.
+  let finishedOk = false;
+  admin.on('draw:rolling', ({ mode, drawn, gameId } = {}) => {
     if (mode !== 'physics') return;
     drawRollingAt = Date.now();
     const used = new Set(drawn || []);
@@ -186,7 +187,7 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
     for (let n = 1; n <= 90; n++) if (!used.has(n)) available.push(n);
     if (!available.length) return;
     const number = available[Math.floor(Math.random() * available.length)];
-    setTimeout(() => admin.emit('draw:physics-result', { number, gameId }), Math.max(50, duration || 1000));
+    setTimeout(() => admin.emit('draw:physics-result', { number, gameId }), 40);
   });
   admin.on('draw:result', () => {
     drawResults++;
@@ -194,12 +195,19 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
     drawRollingAt = 0;
   });
   admin.on('draw:error', () => { drawErrors++; });
+  admin.on('game:finished', () => { finishedOk = true; });
+  admin.on('game:limit-reached', () => { finishedOk = true; });
 
-  const finished = event(admin, 'game:finished', () => true, 180000);
-  const autoRunning = event(admin, 'auto:state', (s) => s.running === true, 10000);
-  admin.emit('auto:start');
-  await autoRunning;
-  await finished;
+  for (let i = 0; i < 90 && !finishedOk; i++) {
+    const result = event(admin, 'draw:result', () => true, 10000);
+    admin.emit('draw:request', {});
+    await result;
+    // Chờ event game:finished/game:limit-reached được giao trước khi gửi lượt tiếp.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const snapshot = await (await fetch(`${url}/api/state`)).json();
+    if (snapshot.maxWinnersReached) { finishedOk = true; break; }
+  }
+  if (!finishedOk) throw new Error('Không có người Kinh sau 90 lượt xổ');
 
   hr('KẾT QUẢ LOAD TEST');
   const successes = assigned + locked + drawResults;
