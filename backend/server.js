@@ -15,6 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -48,14 +49,26 @@ function shuffle(arr) {
   }
   return arr;
 }
+// Ưu tiên IP LAN thực tế: 192.168.x.x > 10.x.x.x > 172.16-31.x.x > IP khác.
 function getLocalIP() {
+  const priority = (ip) => {
+    if (/^192\.168\./.test(ip)) return 0;
+    if (/^10\./.test(ip)) return 1;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return 2;
+    return 3;
+  };
+  const candidates = [];
   const ifaces = os.networkInterfaces();
   for (const name of Object.keys(ifaces)) {
     for (const iface of ifaces[name] || []) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+      if (iface.family === 'IPv4' && !iface.internal && iface.address) {
+        candidates.push(iface.address);
+      }
     }
   }
-  return 'localhost';
+  if (!candidates.length) return 'localhost';
+  candidates.sort((a, b) => priority(a) - priority(b));
+  return candidates[0];
 }
 function makeId() {
   return Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
@@ -1876,15 +1889,54 @@ app.get('/api/state', (req, res) => {
   });
 });
 
+// Mở đồng thời 3 trang khi chạy với cờ --open / -o.
+function openAllPages(urls) {
+  const openOne = (url) => {
+    try {
+      let child;
+      if (process.platform === 'darwin') child = spawn('open', [url], { stdio: 'ignore', detached: true });
+      else if (process.platform === 'win32') child = spawn('cmd', ['/c', 'start', '', `"${url}"`], { stdio: 'ignore', detached: true });
+      else child = spawn('xdg-open', [url], { stdio: 'ignore', detached: true });
+      if (child && child.on) child.on('error', () => {});
+      if (child && child.unref) child.unref();
+    } catch (error) {
+      console.error(`  ⚠ Không mở được ${url}: ${error.message}`);
+    }
+  };
+  urls.forEach(openOne);
+}
+
 server.listen(PORT, '0.0.0.0', () => {
   const signatures = game.tickets.map((t) => gridSignature(t.rows));
   const unique = new Set(signatures).size;
   const dup = game.tickets.length - unique;
-  console.log('================================================');
-  console.log(`  Kiểm tra vé: ${game.tickets.length} vé, ${unique} vé khác nhau, ${dup} vé trùng`);
-  console.log('  LÔ TÔ TẾT - Máy chủ đã sẵn sàng');
-  console.log(`  Màn hình chính: http://localhost:${PORT}`);
-  console.log(`  Người chơi quét QR: ${buildJoinUrl()}`);
-  console.log(`  Vé 9x9 · ${game.config.maxPlayers} vé · cược ${game.config.betPerTicket.toLocaleString('vi-VN')}đ/vé`);
-  console.log('================================================');
+  const lan = getLocalIP();
+  const local = `http://localhost:${PORT}`;
+  const lanBase = `http://${lan}:${PORT}`;
+  const C = {
+    reset: '\x1b[0m', bold: '\x1b[1m', red: '\x1b[31m',
+    gold: '\x1b[33m', green: '\x1b[32m', cyan: '\x1b[36m', dim: '\x1b[2m',
+  };
+  const line = `${C.gold}========================================================${C.reset}`;
+  console.log(line);
+  console.log(`  ${C.bold}${C.red}🧧 LÔ TÔ TẾT - MÁY CHỦ ĐÃ SẴN SÀNG${C.reset}`);
+  console.log(`  ${C.dim}Kiểm tra vé: ${game.tickets.length} vé · ${unique} khác nhau · ${dup} trùng${C.reset}`);
+  console.log(`  ${C.dim}Vé 9x9 · ${game.config.maxPlayers} vé · cược ${game.config.betPerTicket.toLocaleString('vi-VN')}đ/vé${C.reset}`);
+  console.log(line);
+  console.log(`  ${C.bold}${C.green}1. Quản trò (Admin)${C.reset}`);
+  console.log(`     ${C.cyan}Local:${C.reset} ${local}/`);
+  console.log(`     ${C.cyan}LAN  :${C.reset} ${lanBase}/`);
+  console.log(`  ${C.bold}${C.green}2. Màn hình TV${C.reset}`);
+  console.log(`     ${C.cyan}Local:${C.reset} ${local}/tv.html`);
+  console.log(`     ${C.cyan}LAN  :${C.reset} ${lanBase}/tv.html`);
+  console.log(`  ${C.bold}${C.green}3. Người chơi (Play)${C.reset}`);
+  console.log(`     ${C.cyan}Local:${C.reset} ${local}/play.html`);
+  console.log(`     ${C.cyan}LAN  :${C.reset} ${lanBase}/play.html`);
+  console.log(`  ${C.dim}Quét QR trên TV bằng điện thoại cùng mạng LAN.${C.reset}`);
+  console.log(line);
+
+  if (process.argv.includes('--open') || process.argv.includes('-o')) {
+    console.log(`  ${C.gold}🚀 Đang mở cả 3 trang trên trình duyệt...${C.reset}`);
+    openAllPages([`${local}/`, `${local}/tv.html`, `${local}/play.html`]);
+  }
 });

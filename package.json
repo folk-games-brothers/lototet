@@ -3,6 +3,9 @@
   "private": true,
   "scripts": {
     "start": "cd backend && npm start",
+    "start:open": "cd backend && npm run start:open",
+    "test": "node --test backend/test/*.test.js",
+    "test:menu": "node backend/test/cli.js",
     "install:backend": "cd backend && npm install",
     "load-test": "node backend/test/load-test.js"
   }

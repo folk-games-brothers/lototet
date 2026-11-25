@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "start:open": "node server.js --open",
+    "test": "node --test test/*.test.js",
+    "test:menu": "node test/cli.js",
+    "load-test": "node test/load-test.js"
   },
   "dependencies": {
     "express": "^4.18.2",

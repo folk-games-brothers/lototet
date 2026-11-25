@@ -169,6 +169,64 @@ test('admin control panel: main actions + single next-round button, 4 TV/audio t
   assert.doesNotMatch(host, /setBtnLabel\([^)]*['"][🎲🤖📜🏆🔊🎤⏹]/);
 });
 
+test('startup table, --open flag, Windows launchers and interactive test CLI', () => {
+  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const cli = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'cli.js'), 'utf8');
+  const backendCmd = fs.readFileSync(path.join(frontend, '..', 'backend', 'Chay-May-Chu.cmd'), 'utf8');
+  const rootCmd = fs.readFileSync(path.join(frontend, '..', 'Chay-May-Chu.cmd'), 'utf8');
+  const rootPkg = JSON.parse(fs.readFileSync(path.join(frontend, '..', 'package.json'), 'utf8'));
+  const backendPkg = JSON.parse(fs.readFileSync(path.join(frontend, '..', 'backend', 'package.json'), 'utf8'));
+  const guide = fs.readFileSync(path.join(frontend, '..', 'HUONG_DAN_NHANH.txt'), 'utf8');
+
+  // LAN IP ưu tiên 192.168 > 10 > 172.16-31.
+  assert.match(server, /function getLocalIP\(\)/);
+  assert.match(server, /\^192\\\.168\\\./);
+  assert.match(server, /\^10\\\./);
+  assert.match(server, /172\\\.\(1\[6-9\]\|2\\d\|3\[01\]\)/);
+
+  // Bảng 3 link Local + LAN và cờ --open.
+  assert.match(server, /1\. Quản trò \(Admin\)/);
+  assert.match(server, /2\. Màn hình TV/);
+  assert.match(server, /3\. Người chơi \(Play\)/);
+  assert.match(server, /\/tv\.html/);
+  assert.match(server, /\/play\.html/);
+  assert.match(server, /process\.argv\.includes\('--open'\)/);
+  assert.match(server, /function openAllPages\(urls\)/);
+  assert.match(server, /xdg-open/);
+
+  // Launcher Windows.
+  assert.match(backendCmd, /chcp 65001 >nul/);
+  assert.match(backendCmd, /if not exist "node_modules"/);
+  assert.match(backendCmd, /call npm install/);
+  assert.match(backendCmd, /tự động mở sẵn 3 trang/);
+  assert.match(backendCmd, /npm run start:open/);
+  assert.match(rootCmd, /backend\\Chay-May-Chu\.cmd/);
+
+  // CLI tương tác: module có sẵn, mũi tên/số, Enter, stdio inherit, auto start server.
+  assert.match(cli, /require\('node:readline'\)/);
+  assert.match(cli, /require\('node:net'\)/);
+  assert.match(cli, /setRawMode\(true\)/);
+  assert.match(cli, /key\.name === 'up'/);
+  assert.match(cli, /key\.name === 'down'/);
+  assert.match(cli, /Nhấn Enter để quay lại menu/);
+  assert.match(cli, /stdio: 'inherit'/);
+  assert.match(cli, /portIsOpen\(PORT\)/);
+  assert.match(cli, /tempServer\.kill\('SIGTERM'\)/);
+  assert.match(cli, /Load Test - giả lập phòng đông/);
+
+  // Scripts ở cả 2 package.json + hướng dẫn.
+  for (const key of ['start', 'start:open', 'test', 'test:menu']) {
+    assert.ok(rootPkg.scripts[key], `root package.json thiếu ${key}`);
+    assert.ok(backendPkg.scripts[key], `backend/package.json thiếu ${key}`);
+  }
+  assert.match(rootPkg.scripts['start:open'], /start:open/);
+  assert.match(backendPkg.scripts['start:open'], /--open/);
+  assert.match(guide, /npm start/);
+  assert.match(guide, /npm run start:open/);
+  assert.match(guide, /npm run test:menu/);
+  assert.match(guide, /Chay-May-Chu\.cmd/);
+});
+
 test('business audit: rounded prize, locked settings bypass, locked-only Kinh and simultaneous over-limit', () => {
   const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
 
