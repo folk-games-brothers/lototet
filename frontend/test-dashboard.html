@@ -6,106 +6,204 @@
 <title>Loto Tet - Test Dashboard</title>
 <style>
   :root {
-    --bg:#1b0b0b; --panel:#2a1212; --panel2:#351818; --line:rgba(255,212,94,.25);
-    --gold:#ffd54f; --cream:#fff3cf; --muted:#d9b98a;
+    --bg:#170909; --panel:#251111; --panel2:#301818; --line:rgba(255,212,94,.24);
+    --gold:#ffd54f; --cream:#fff3cf; --muted:#d4ad7d;
     --pass:#4ade80; --fail:#ff6b6b; --run:#60a5fa;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:radial-gradient(circle at top,#3b1210,#1b0b0b 70%);color:var(--cream);
+  body{margin:0;background:radial-gradient(circle at top,#3a1410,#170909 70%);color:var(--cream);
     font-family:system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
-  header{padding:18px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  h1{margin:0;font-size:20px;color:var(--gold)}
-  .sub{color:var(--muted);font-size:12px}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
-  button,select,input{font:inherit;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);padding:8px 12px;cursor:pointer}
-  button:hover{filter:brightness(1.15)}
-  button.primary{background:linear-gradient(135deg,#b81c1c,#7a1010);border-color:var(--gold);font-weight:700}
-  input{width:80px;cursor:text}
-  .wrap{padding:20px 24px;max-width:1400px;margin:0 auto}
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
-  .card .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-  .card .value{font-size:30px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
-  .card.pass .value{color:var(--pass)} .card.fail .value{color:var(--fail)} .card.time .value{color:var(--gold)}
-  .progress-wrap{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:16px}
-  .progress-track{height:10px;background:#4a2424;border-radius:999px;overflow:hidden;margin-top:8px}
-  .progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--pass),var(--gold));transition:width .25s ease}
-  .progress-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
-  .logbox{background:#120707;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:16px;
-    max-height:220px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;color:#ffd9a0;display:none}
-  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
-  .metric{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
-  .metric b{display:block;font-size:22px;color:var(--gold);margin-top:4px}
-  .metric.ok b{color:var(--pass)} .metric.bad b{color:var(--fail)}
-  .group{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
-  .group-head{display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--panel2);cursor:pointer}
-  .group-head b{color:var(--gold)} .group-head small{color:var(--muted);margin-left:auto}
-  .badge{font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;border:1px solid currentColor}
-  .badge.PASS{color:var(--pass)} .badge.FAIL{color:var(--fail)} .badge.RUNNING{color:var(--run)}
-  .rows{padding:8px 12px 12px}
-  .row{border-top:1px dashed var(--line);padding:8px 4px}
+  .app{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:100vh}
+  aside{background:rgba(20,5,5,.85);border-right:1px solid var(--line);padding:16px;overflow-y:auto;max-height:100vh}
+  aside h1{font-size:17px;color:var(--gold);margin:0 0 3px}
+  aside .sub{font-size:11px;color:var(--muted);margin-bottom:12px}
+  .run-all{width:100%;padding:14px;border-radius:12px;border:2px solid var(--gold);cursor:pointer;
+    background:linear-gradient(135deg,#b81c1c,#7a1010);color:#fff;font-weight:800;text-align:left}
+  .run-all .types{display:block;font-size:10px;font-weight:500;color:#ffe3a0;margin-top:5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px;margin-top:12px}
+  .card h3{margin:0 0 8px;font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:.06em}
+  .suite-btn{position:relative;display:block;width:100%;text-align:left;margin-bottom:7px;padding:10px 10px;
+    border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);cursor:pointer}
+  .suite-btn:hover{filter:brightness(1.12)}
+  .suite-btn.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+  .suite-btn .title{display:block;font-weight:700;font-size:13px}
+  .suite-btn .desc{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+  .suite-btn .types{display:block;font-size:10px;color:#ffd977;margin-top:4px;line-height:1.35}
+  .suite-btn .sel-label{display:none;position:absolute;top:6px;right:8px;font-size:9px;font-weight:800;color:#4a1205;
+    background:var(--gold);border-radius:999px;padding:1px 6px}
+  .suite-btn.active .sel-label{display:inline-block}
+  .badges{display:flex;gap:5px;margin-top:6px}
+  .badges i{font-style:normal;font-size:10px;border-radius:999px;padding:1px 7px;border:1px solid currentColor}
+  .badges .p{color:var(--pass)} .badges .f{color:var(--fail)}
+  .bot-row{display:flex;gap:6px;align-items:center;margin:8px 0}
+  .bot-row button{flex:1;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);cursor:pointer}
+  .bot-row button.active{background:var(--gold);color:#4a1205;font-weight:800}
+  .bot-row input{width:64px;padding:6px;border-radius:8px;border:1px solid var(--line);background:#120707;color:var(--cream)}
+  .status-line{font-size:11px;color:var(--muted);margin-top:8px;min-height:16px}
+  .spinner{display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .suite-btn.loading .spinner,.run-all.loading .spinner{display:inline-block}
+  .locked{opacity:.5;pointer-events:none}
+
+  main{padding:18px 22px;overflow-y:auto;max-height:100vh;min-width:0}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .stat .label{font-size:11px;color:var(--muted);text-transform:uppercase}
+  .stat .value{font-size:26px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat.pass .value{color:var(--pass)} .stat.fail .value{color:var(--fail)} .stat.time .value{color:var(--gold)}
+  .banner{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .banner .title{font-weight:800;color:var(--gold);font-size:14px}
+  .banner .types{font-size:11px;color:var(--muted);margin-top:3px}
+  .banner .current{font-size:12px;color:#ffe6b0;margin:8px 0 6px;min-height:17px}
+  .track{height:12px;background:#4a2424;border-radius:999px;overflow:hidden}
+  .bar{height:100%;width:0;background:linear-gradient(90deg,var(--run),var(--pass),var(--gold));transition:width .18s ease}
+  .pct{text-align:right;font-size:12px;color:var(--gold);margin-top:4px;font-variant-numeric:tabular-nums}
+  .fail-banner{background:rgba(180,20,20,.22);border:1px solid var(--fail);border-radius:12px;padding:11px 14px;margin-bottom:12px}
+  .fail-banner b{color:var(--fail)}
+  .fail-banner button{display:inline-block;margin:5px 5px 0 0;padding:4px 9px;border-radius:8px;border:1px solid var(--fail);
+    background:rgba(0,0,0,.25);color:#ffd0d0;cursor:pointer;font-size:11px}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .segmented{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .segmented button{border:none;background:transparent;color:var(--muted);padding:6px 13px;border-radius:999px;cursor:pointer;font-size:12px}
+  .segmented button.active{background:var(--gold);color:#4a1205;font-weight:800}
+  .ghost{padding:7px 12px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--cream);cursor:pointer;font-size:12px}
+  .waiting{display:grid;gap:6px;margin-bottom:12px}
+  .wait-item{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12px}
+  .wait-item .st{margin-left:auto;font-size:10px;font-weight:800;color:var(--muted);border:1px solid currentColor;border-radius:999px;padding:2px 7px}
+  .wait-item .st.RUNNING{color:var(--run)} .wait-item .st.PASS{color:var(--pass)} .wait-item .st.FAIL{color:var(--fail)}
+  .group{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+  .group-head{padding:10px 13px;background:var(--panel2);display:flex;align-items:center;gap:8px;font-weight:700;color:var(--gold)}
+  .group-head small{margin-left:auto;color:var(--muted);font-weight:400}
+  .rows{padding:6px 10px 10px}
+  .row{border-top:1px dashed var(--line);padding:7px 2px}
   .row:first-child{border-top:none}
-  .row-head{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
-  .row-head .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .row-head .dur{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
-  .detail{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-  .io{background:#120707;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:0}
-  .io h4{margin:0 0 6px;color:var(--gold);font-size:12px;letter-spacing:.05em}
-  pre{margin:0;white-space:pre-wrap;word-break:break-word;font:12px/1.45 ui-monospace,Menlo,monospace;color:#ffe9bd}
-  .error{margin-top:10px;background:rgba(255,107,107,.12);border:1px solid var(--fail);border-radius:10px;padding:10px}
-  .error b{color:var(--fail)}
-  .hidden{display:none!important}
-  @media(max-width:760px){.detail{grid-template-columns:1fr}.toolbar{margin-left:0}}
+  .row-head{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px}
+  .row-head .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row-head .dur{color:var(--muted);font-size:11px}
+  .cat{font-size:9px;font-weight:800;border-radius:999px;padding:2px 7px;border:1px solid currentColor;color:#9ecbff;white-space:nowrap}
+  .cat.Concurrency{color:#c4b5fd} .cat.Unit{color:#7dd3fc} .cat.Regression{color:#fcd34d} .cat.Load{color:#f9a8d4}
+  .st{font-size:9px;font-weight:800;border-radius:999px;padding:2px 7px;border:1px solid currentColor}
+  .st.RUNNING{color:var(--run)} .st.PASS{color:var(--pass)} .st.FAIL{color:var(--fail)}
+  .detail{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .io{background:#120707;border:1px solid var(--line);border-radius:9px;padding:9px;min-width:0}
+  .io h4{margin:0 0 5px;color:var(--gold);font-size:11px}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font:11px/1.45 ui-monospace,Menlo,monospace;color:#ffe9bd}
+  .error-box{grid-column:1/-1;background:rgba(255,107,107,.12);border:1px solid var(--fail);border-radius:9px;padding:9px}
+  .error-box b{color:var(--fail)}
+  .flash{animation:flashRow 1.1s ease}
+  @keyframes flashRow{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 2px var(--fail) inset}}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .metric b{display:block;font-size:19px;color:var(--gold);margin-top:3px}
+  .metric.ok b{color:var(--pass)} .metric.bad b{color:var(--fail)}
+  .logbox{background:#120707;border:1px solid var(--line);border-radius:10px;padding:10px;max-height:180px;overflow:auto;
+    font:11px/1.4 ui-monospace,Menlo,monospace;color:#ffd9a0;white-space:pre-wrap;display:none}
+  @media(max-width:900px){.app{grid-template-columns:1fr}aside{max-height:none}main{max-height:none}.stats{grid-template-columns:repeat(2,1fr)}.detail{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header>
-  <div><h1>🧪 LÔ TÔ TẾT - TEST DASHBOARD</h1><div class="sub">Chạy test và xem chi tiết Input / Output theo thời gian thực</div></div>
-  <div class="toolbar">
-    <button class="primary" data-suite="all">Chạy Tất Cả</button>
-    <button data-suite="server">Server</button>
-    <button data-suite="frontend">Frontend</button>
-    <button data-suite="audio">Audio</button>
-    <button data-suite="concurrency">Concurrency</button>
-    <input id="users" type="number" min="1" max="250" value="50" aria-label="Số người chơi ảo" />
-    <button id="btnLoad" class="primary">Chạy Load Test</button>
-    <select id="filter">
-      <option value="all">Tất cả</option>
-      <option value="pass">Chỉ hiện Pass</option>
-      <option value="fail">Chỉ hiện Fail</option>
-    </select>
-  </div>
-</header>
+<div class="app">
+  <aside id="sidebar">
+    <h1>🧪 TEST DASHBOARD</h1>
+    <div class="sub">Lô Tô Tết · Chạy & xem chi tiết từng ca test</div>
+    <button class="run-all suite-btn" data-suite="all"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+      <b class="title">Chạy Toàn Bộ Kiểm Thử</b><span class="types" data-types></span>
+      <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span>
+    </button>
 
-<div class="wrap">
-  <div class="cards">
-    <div class="card"><div class="label">Tổng số test</div><div class="value" id="sumTotal">0</div></div>
-    <div class="card pass"><div class="label">Pass</div><div class="value" id="sumPass">0</div></div>
-    <div class="card fail"><div class="label">Fail</div><div class="value" id="sumFail">0</div></div>
-    <div class="card time"><div class="label">Tổng thời gian</div><div class="value" id="sumTime">0 ms</div></div>
-  </div>
-  <div class="progress-wrap">
-    <div class="progress-label"><span id="progressText">Sẵn sàng</span><span id="progressPct">0%</span></div>
-    <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
-  </div>
-  <div class="logbox" id="logbox"></div>
-  <div class="metrics hidden" id="metrics"></div>
-  <div id="results"></div>
+    <section class="card">
+      <h3>Regression & Nghiệp vụ</h3>
+      <button class="suite-btn" data-suite="regression"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title"></b><span class="desc"></span><span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+      <button class="suite-btn" data-suite="server"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title"></b><span class="desc"></span><span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+      <button class="suite-btn" data-suite="frontend"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title"></b><span class="desc"></span><span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+      <button class="suite-btn" data-suite="audio"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title"></b><span class="desc"></span><span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+    </section>
+
+    <section class="card">
+      <h3>Concurrency Test</h3>
+      <button class="suite-btn" data-suite="concurrency"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title"></b><span class="desc"></span><span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+    </section>
+
+    <section class="card">
+      <h3>Load Test (Chịu tải)</h3>
+      <div class="bot-row">
+        <button data-bots="20">20</button><button data-bots="50" class="active">50</button><button data-bots="100">100</button>
+        <input id="botsCustom" type="number" min="1" max="250" value="50" aria-label="Số bot tùy chỉnh" />
+      </div>
+      <button class="suite-btn" data-suite="load"><span class="spinner"></span><span class="sel-label">Đang chọn</span>
+        <b class="title">Bắt đầu Load Test</b>
+        <span class="desc">Số người chơi ảo (Bots): <b id="botsLabel">50</b></span>
+        <span class="types" data-types></span>
+        <span class="badges"><i class="p">Pass 0</i><i class="f">Fail 0</i></span></button>
+    </section>
+    <div class="status-line" id="statusLine"></div>
+  </aside>
+
+  <main>
+    <div class="stats">
+      <div class="stat"><div class="label">Tổng số test</div><div class="value" id="sumTotal">0</div></div>
+      <div class="stat pass"><div class="label">Pass</div><div class="value" id="sumPass">0</div></div>
+      <div class="stat fail"><div class="label">Fail</div><div class="value" id="sumFail">0</div></div>
+      <div class="stat time"><div class="label">Tổng thời gian (ms)</div><div class="value" id="sumTime">0</div></div>
+    </div>
+
+    <div class="banner" id="activeBanner">
+      <div class="title" id="bannerTitle">Sẵn sàng — chọn nhóm test ở cột trái</div>
+      <div class="types" id="bannerTypes"></div>
+      <div class="current" id="bannerCurrent">Đang kiểm tra: —</div>
+      <div class="track"><div class="bar" id="bannerBar"></div></div>
+      <div class="pct" id="bannerPct">0%</div>
+    </div>
+
+    <div class="fail-banner" id="failBanner" hidden>
+      <b>⚠ Có ca kiểm thử bị FAIL:</b><div id="failList"></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="segmented" id="segmented">
+        <button data-filter="all" class="active">Tất cả</button>
+        <button data-filter="pass">Đạt (Pass)</button>
+        <button data-filter="fail">Lỗi (Fail)</button>
+      </div>
+      <button class="ghost" id="toggleExpand">Mở rộng tất cả</button>
+    </div>
+
+    <div class="waiting" id="suiteWaiting"></div>
+    <div class="metrics" id="metrics" hidden></div>
+    <div id="results"></div>
+    <div class="logbox" id="logbox"></div>
+  </main>
 </div>
 
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
-  const state = { groups: new Map(), expanded: new Set(), filter: 'all', running: false, source: null, currentSuite: '', runDuration: 0 };
-  const SUITE_LABEL = { all: 'Tất cả', server: 'Server', frontend: 'Frontend', audio: 'Audio', concurrency: 'Concurrency', load: 'Load Test' };
+  const state = {
+    suites: new Map(), selected: 'all', bots: 50, isRunning: false, source: null,
+    total: 0, completed: 0, pass: 0, fail: 0, duration: 0, percent: 0,
+    currentTestName: '', bannerLabel: '', bannerTypes: '',
+    groups: new Map(), rows: new Map(), expanded: new Set(), filter: 'all',
+    failed: [], rowCounter: 0, allExpanded: false,
+  };
 
-  function fmtMs(ms) { return Math.round(Number(ms) || 0) + ' ms'; }
-  function pretty(value) {
-    if (value === undefined) return '(không có)';
+  const pretty = (value) => {
+    if (value === undefined || value === null) return '(không có dữ liệu)';
     if (typeof value === 'string') { try { return JSON.stringify(JSON.parse(value), null, 2); } catch (e) { return value; } }
     try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
-  }
-  function parseIO(diagnostics) {
+  };
+  const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ioFrom = (diagnostics) => {
     let input = null, output = null;
     for (const message of diagnostics || []) {
       const text = String(message);
@@ -114,185 +212,358 @@
       }
     }
     return { input, output };
+  };
+
+  function applySuiteMeta() {
+    document.querySelectorAll('[data-suite]').forEach((button) => {
+      const meta = state.suites.get(button.dataset.suite);
+      if (!meta) return;
+      const title = button.querySelector('.title');
+      const desc = button.querySelector('.desc');
+      const types = button.querySelector('[data-types]');
+      if (title && button.dataset.suite !== 'all' && button.dataset.suite !== 'load') title.textContent = meta.label;
+      if (desc && button.dataset.suite !== 'all') desc.textContent = meta.description;
+      if (types) types.textContent = meta.typesLabel;
+    });
   }
-  function groupFor(file, suite) {
+
+  function renderWaiting() {
+    const host = $('suiteWaiting');
+    host.innerHTML = '';
+    for (const meta of state.suites.values()) {
+      const item = document.createElement('div');
+      item.className = 'wait-item';
+      item.dataset.waitSuite = meta.id;
+      item.innerHTML = `<b>${esc(meta.label)}</b><span class="types">${esc(meta.typesLabel)}</span><span class="st">CHỜ CHẠY</span>`;
+      host.appendChild(item);
+    }
+  }
+
+  function setWaitingStatus(suite, status) {
+    const item = document.querySelector(`[data-wait-suite="${suite}"]`);
+    if (item) { const st = item.querySelector('.st'); st.textContent = status; st.className = 'st ' + status; }
+  }
+
+  function selectSuite(suite) {
+    state.selected = suite;
+    document.querySelectorAll('[data-suite]').forEach((b) => b.classList.toggle('active', b.dataset.suite === suite));
+  }
+
+  function updateBadges() {
+    for (const suite of state.suites.keys()) {
+      const button = document.querySelector(`[data-suite="${suite}"]`);
+      if (!button) continue;
+      let p = 0, f = 0;
+      for (const group of state.groups.values()) {
+        if (group.suite === suite || (suite === 'all') || (suite === 'regression' && ['server', 'frontend', 'audio'].includes(group.suite))) {
+          for (const test of group.tests.values()) { if (test.status === 'PASS') p++; if (test.status === 'FAIL') f++; }
+        }
+      }
+      button.querySelector('.p').textContent = 'Pass ' + p;
+      button.querySelector('.f').textContent = 'Fail ' + f;
+    }
+  }
+
+  function updateStats() {
+    $('sumTotal').textContent = state.total;
+    $('sumPass').textContent = state.pass;
+    $('sumFail').textContent = state.fail;
+    $('sumTime').textContent = state.duration;
+    $('bannerBar').style.width = state.percent + '%';
+    $('bannerPct').textContent = state.percent + '%';
+  }
+
+  function updateBannerProgress(payload) {
+    if (typeof payload.percent === 'number') state.percent = payload.percent;
+    if (typeof payload.total === 'number') state.total = Math.max(state.total, payload.total);
+    if (typeof payload.completed === 'number') state.completed = payload.completed;
+    if (payload.currentTestName) state.currentTestName = payload.currentTestName;
+    if (payload.label) state.bannerLabel = payload.label;
+    if (payload.typesLabel) state.bannerTypes = payload.typesLabel;
+    $('bannerTitle').textContent = 'Đang chạy: ' + (state.bannerLabel || state.selected);
+    $('bannerTypes').textContent = state.bannerTypes || '';
+    $('bannerCurrent').textContent = 'Đang kiểm tra: ' + (state.currentTestName || '—');
+    updateStats();
+  }
+
+  function lockButtons(clicked) {
+    state.isRunning = true;
+    document.querySelectorAll('[data-suite]').forEach((b) => {
+      b.classList.add('locked');
+      b.disabled = true;
+      if (b === clicked) b.classList.add('loading');
+    });
+    $('statusLine').textContent = 'Đang khởi chạy tiến trình kiểm thử, vui lòng chờ...';
+  }
+  function unlockButtons() {
+    state.isRunning = false;
+    document.querySelectorAll('[data-suite]').forEach((b) => {
+      b.classList.remove('locked', 'loading');
+      b.disabled = false;
+    });
+    $('statusLine').textContent = '';
+  }
+
+  function ensureGroup(file, suite) {
     if (!state.groups.has(file)) {
-      state.groups.set(file, { file, suite, status: 'RUNNING', durationMs: 0, tests: new Map() });
+      const box = document.createElement('div');
+      box.className = 'group';
+      box.innerHTML = `<div class="group-head"><span>${esc(file)}</span><small>0 test · 0 ms</small></div><div class="rows"></div>`;
+      $('results').appendChild(box);
+      state.groups.set(file, { file, suite, tests: new Map(), box, rows: box.querySelector('.rows'), head: box.querySelector('.group-head small') });
     }
     return state.groups.get(file);
   }
-  function shortcut(name) {
-    return String(name || '').split(/[:·]/).map((s) => s.trim()).filter(Boolean).slice(0, 4).join(' · ');
+
+  function createRow(event) {
+    const group = ensureGroup(event.file || 'unknown.test.js', event.suite || state.selected);
+    const key = String(event.name || 'test-' + (++state.rowCounter));
+    if (group.tests.has(key)) return group.tests.get(key);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'row-' + (++state.rowCounter);
+    const category = event.category || 'Integration';
+    row.innerHTML =
+      `<div class="row-head"><span class="cat ${esc(category)}">${esc(category)}</span>` +
+      `<span class="st RUNNING">RUNNING</span><span class="name">${esc(key)}</span><span class="dur">0 ms</span></div>` +
+      `<div class="detail" hidden><div class="io"><h4>INPUT (Dữ liệu đầu vào)</h4><pre></pre></div>` +
+      `<div class="io"><h4>OUTPUT (Kết quả thực tế)</h4><pre></pre></div>` +
+      `<div class="error-box" hidden><b>Expected vs Actual / Error / Stack</b><pre></pre></div></div>`;
+    group.rows.appendChild(row);
+    const test = { key, row, status: 'RUNNING', durationMs: 0, diagnostics: [], category };
+    group.tests.set(key, test);
+    row.querySelector('.row-head').onclick = () => {
+      if (state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
+      row.querySelector('.detail').hidden = !state.expanded.has(key);
+    };
+    return test;
   }
 
-  function render() {
-    let total = 0, pass = 0, fail = 0, duration = 0;
+  function fillDetail(test, payload) {
+    const detail = test.row.querySelector('.detail');
+    const parsed = ioFrom(test.diagnostics);
+    const input = payload.input !== undefined ? payload.input : parsed.input;
+    const output = payload.output !== undefined ? payload.output : parsed.output;
+    detail.children[0].querySelector('pre').textContent = pretty(input);
+    detail.children[1].querySelector('pre').textContent = pretty(output);
+    if (payload.error) {
+      const errorBox = detail.querySelector('.error-box');
+      errorBox.hidden = false;
+      errorBox.querySelector('pre').textContent =
+        'EXPECTED:\n' + pretty(payload.error.expected) +
+        '\n\nACTUAL:\n' + pretty(payload.error.actual) +
+        '\n\nMESSAGE:\n' + (payload.error.message || '') +
+        '\n\nSTACK:\n' + (payload.error.stack || '');
+    }
+  }
+
+  function finishTest(event) {
+    const test = createRow(event);
+    test.status = event.type === 'test:pass' ? 'PASS' : 'FAIL';
+    test.durationMs = event.durationMs || 0;
+    test.diagnostics = event.diagnostics || test.diagnostics;
+    test.row.querySelector('.st').textContent = test.status;
+    test.row.querySelector('.st').className = 'st ' + test.status;
+    test.row.querySelector('.dur').textContent = test.durationMs + ' ms';
+    fillDetail(test, event);
+    if (test.status === 'FAIL') {
+      state.expanded.add(test.key);
+      test.row.querySelector('.detail').hidden = false;
+      state.failed.push(test);
+      renderFailBanner();
+    }
+    state.pass = [...state.groups.values()].reduce((n, g) => n + [...g.tests.values()].filter((t) => t.status === 'PASS').length, 0);
+    state.fail = state.failed.length;
+    updateBadges();
+    updateStats();
+  }
+
+  function renderFailBanner() {
+    const banner = $('failBanner');
+    if (!state.failed.length) { banner.hidden = true; return; }
+    banner.hidden = false;
+    const list = $('failList');
+    list.innerHTML = '';
+    for (const test of state.failed) {
+      const btn = document.createElement('button');
+      btn.textContent = test.key;
+      btn.onclick = () => {
+        const row = test.row;
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+      };
+      list.appendChild(btn);
+    }
+  }
+
+  function applyFilter() {
     for (const group of state.groups.values()) {
       for (const test of group.tests.values()) {
-        if (test.status === 'PASS') pass++;
-        if (test.status === 'FAIL') fail++;
-        duration += test.durationMs || 0;
+        const show = state.filter === 'all' || (state.filter === 'pass' ? test.status === 'PASS' : test.status === 'FAIL');
+        test.row.style.display = show ? '' : 'none';
       }
-      total += group.tests.size;
     }
-    $('sumTotal').textContent = total;
-    $('sumPass').textContent = pass;
-    $('sumFail').textContent = fail;
-    $('sumTime').textContent = fmtMs(state.runDuration || duration);
-    const completed = pass + fail;
-    const pct = total ? Math.round(completed / total * 100) : 0;
-    $('progressBar').style.width = pct + '%';
-    $('progressPct').textContent = pct + '%';
-    $('progressText').textContent = state.running
-      ? `Đang chạy ${SUITE_LABEL[state.currentSuite] || state.currentSuite}... (${completed}/${total})`
-      : (total ? `Hoàn tất · ${completed}/${total} test` : 'Sẵn sàng');
-
-    const host = $('results');
-    host.innerHTML = '';
-    for (const group of state.groups.values()) {
-      const visible = [...group.tests.values()].filter((t) =>
-        state.filter === 'all' || (state.filter === 'pass' ? t.status === 'PASS' : t.status === 'FAIL'));
-      if (!visible.length) continue;
-      const groupBox = document.createElement('div');
-      groupBox.className = 'group';
-      const head = document.createElement('div');
-      head.className = 'group-head';
-      head.innerHTML = `<b>${escapeHtml(group.file)}</b><span class="badge ${group.status}">${group.status}</span>` +
-        `<small>${visible.length} test · ${fmtMs(group.durationMs)}</small>`;
-      groupBox.appendChild(head);
-      const rows = document.createElement('div');
-      rows.className = 'rows';
-      for (const test of visible) {
-        const key = group.file + '::' + test.name;
-        const opened = state.expanded.has(key);
-        const row = document.createElement('div');
-        row.className = 'row';
-        const h = document.createElement('div');
-        h.className = 'row-head';
-        h.innerHTML = `<span class="badge ${test.status}">${test.status}</span>` +
-          `<span class="name">${escapeHtml(shortcut(test.name))}</span><span class="dur">${fmtMs(test.durationMs)}</span>`;
-        h.onclick = () => { opened ? state.expanded.delete(key) : state.expanded.add(key); render(); };
-        row.appendChild(h);
-        if (opened) {
-          const parsedIO = parseIO(test.diagnostics);
-          const io = { input: test.input !== undefined ? test.input : parsedIO.input,
-                       output: test.output !== undefined ? test.output : parsedIO.output };
-          const detail = document.createElement('div');
-          detail.className = 'detail';
-          detail.innerHTML =
-            `<div class="io"><h4>INPUT (Dữ liệu đầu vào)</h4><pre>${escapeHtml(pretty(io.input))}</pre></div>` +
-            `<div class="io"><h4>OUTPUT (Kết quả thực tế)</h4><pre>${escapeHtml(pretty(io.output))}</pre></div>`;
-          row.appendChild(detail);
-          if (test.status === 'FAIL' && test.error) {
-            const err = document.createElement('div');
-            err.className = 'error';
-            err.innerHTML = `<b>Expected vs Actual</b><pre>EXPECTED:\n${escapeHtml(pretty(test.error.expected))}\n\nACTUAL:\n${escapeHtml(pretty(test.error.actual))}\n\nMESSAGE:\n${escapeHtml(test.error.message || '')}\n\nSTACK:\n${escapeHtml(test.error.stack || '')}</pre>`;
-            row.appendChild(err);
-          }
-        }
-        rows.appendChild(row);
-      }
-      groupBox.appendChild(rows);
-      host.appendChild(groupBox);
-    }
-  }
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  function reset(suite) {
-    state.groups.clear(); state.expanded.clear(); state.running = true; state.currentSuite = suite; state.runDuration = 0;
-    $('metrics').classList.add('hidden');
-    $('logbox').classList.add('hidden');
-    $('logbox').textContent = '';
-    document.querySelectorAll('.toolbar button').forEach((b) => b.disabled = true);
-    render();
-  }
-  function finish() {
-    state.running = false;
-    document.querySelectorAll('.toolbar button').forEach((b) => b.disabled = false);
+  function toggleExpandAll() {
+    state.allExpanded = !state.allExpanded;
     for (const group of state.groups.values()) {
-      const statuses = [...group.tests.values()].map((t) => t.status);
-      group.status = statuses.includes('FAIL') ? 'FAIL' : statuses.includes('RUNNING') ? 'RUNNING' : 'PASS';
-      group.durationMs = [...group.tests.values()].reduce((sum, t) => sum + (t.durationMs || 0), 0);
+      for (const test of group.tests.values()) {
+        if (state.allExpanded) state.expanded.add(test.key); else state.expanded.delete(test.key);
+        test.row.querySelector('.detail').hidden = !state.allExpanded;
+      }
     }
-    render();
+    $('toggleExpand').textContent = state.allExpanded ? 'Thu gọn' : 'Mở rộng tất cả';
   }
+
+  function renderLoadMetrics(event) {
+    const m = event.metrics;
+    const box = $('metrics');
+    box.hidden = false;
+    box.innerHTML =
+      `<div class="metric"><span>Users</span><b>${m.users}</b></div>` +
+      `<div class="metric"><span>Tickets</span><b>${m.tickets}</b></div>` +
+      `<div class="metric"><span>Avg</span><b>${m.avg} ms</b></div>` +
+      `<div class="metric"><span>p95</span><b>${m.p95} ms</b></div>` +
+      `<div class="metric"><span>p99</span><b>${m.p99} ms</b></div>` +
+      `<div class="metric ${m.consistent ? 'ok' : 'bad'}"><span>Tiền giải nhất quán</span><b>${m.consistent ? 'ĐẠT' : 'KHÔNG ĐẠT'}</b></div>`;
+    const group = ensureGroup('load-test.js', 'load');
+    const test = createRow.call(null, { file: 'load-test.js', name: 'Load Test · ' + event.users + ' bots', category: 'Load', suite: 'load' });
+    test.status = m.consistent ? 'PASS' : 'FAIL';
+    test.diagnostics = [];
+    test.input = event.input; test.output = event.output;
+    test.row.querySelector('.st').textContent = test.status;
+    test.row.querySelector('.st').className = 'st ' + test.status;
+    test.row.querySelector('.dur').textContent = '0 ms';
+    fillDetail(test, event);
+    state.expanded.add(test.key);
+    test.row.querySelector('.detail').hidden = false;
+    state.pass += test.status === 'PASS' ? 1 : 0;
+    state.fail += test.status === 'FAIL' ? 1 : 0;
+    updateStats(); updateBadges(); applyFilter();
+  }
+
+  function resetRun(suite) {
+    state.groups.clear(); state.rows = new Map(); state.expanded.clear(); state.failed = [];
+    state.total = 0; state.completed = 0; state.pass = 0; state.fail = 0; state.duration = 0;
+    state.percent = 0; state.currentTestName = '';
+    state.bannerLabel = state.suites.get(suite)?.label || suite;
+    state.bannerTypes = state.suites.get(suite)?.typesLabel || '';
+    $('results').innerHTML = '';
+    $('failBanner').hidden = true; $('failList').innerHTML = '';
+    $('metrics').hidden = true; $('metrics').innerHTML = '';
+    $('logbox').textContent = ''; $('logbox').style.display = 'none';
+    $('bannerTitle').textContent = 'Đang chạy: ' + state.bannerLabel;
+    $('bannerTypes').textContent = state.bannerTypes;
+    $('bannerCurrent').textContent = 'Đang kiểm tra: —';
+    for (const item of document.querySelectorAll('.wait-item')) {
+      const st = item.querySelector('.st'); st.textContent = 'CHỜ CHẠY'; st.className = 'st';
+    }
+    setWaitingStatus(suite, 'RUNNING');
+    updateBannerProgress({ percent: 0 });
+    updateStats();
+  }
+
   function log(line) {
     const box = $('logbox');
-    box.classList.remove('hidden');
+    box.style.display = 'block';
+    if (box.textContent.split('\n').length > 200) box.textContent = '';
     box.textContent += line + '\n';
     box.scrollTop = box.scrollHeight;
   }
 
   function handle(event) {
-    if (event.type === 'run:start') return;
-    if (event.type === 'test:start') {
-      const group = groupFor(event.file || 'unknown.test.js', state.currentSuite);
-      if (!group.tests.has(event.name)) group.tests.set(event.name, { name: event.name, status: 'RUNNING', durationMs: 0, diagnostics: [] });
-      render(); return;
+    if (state.isRunning && (event.type !== 'run:start')) {
+      unlockButtons();
+      $('statusLine').textContent = '';
     }
-    if (event.type === 'test:diagnostic') {
-      const group = groupFor(event.file || 'unknown.test.js');
-      if (event.name && group.tests.has(event.name)) group.tests.get(event.name).diagnostics.push(event.message);
-      render(); return;
-    }
-    if (event.type === 'test:pass' || event.type === 'test:fail') {
-      const group = groupFor(event.file || 'unknown.test.js');
-      const test = group.tests.get(event.name) || { name: event.name, diagnostics: [] };
-      test.status = event.type === 'test:pass' ? 'PASS' : 'FAIL';
-      test.durationMs = event.durationMs || 0;
-      test.error = event.error || null;
-      test.diagnostics = event.diagnostics || test.diagnostics;
-      group.tests.set(event.name, test);
-      render(); return;
-    }
-    if (event.type === 'load:log') { log(event.line); return; }
-    if (event.type === 'load:metrics') {
-      const m = event.metrics;
-      const box = $('metrics');
-      box.classList.remove('hidden');
-      box.innerHTML =
-        `<div class="metric"><span>Bot ảo</span><b>${event.users}</b></div>` +
-        `<div class="metric"><span>Tổng request</span><b>${m.success}/${m.success + m.fail}</b></div>` +
-        `<div class="metric"><span>Tỷ lệ lỗi</span><b>${m.errorRate}%</b></div>` +
-        `<div class="metric"><span>Vé đã chốt</span><b>${m.locked}</b></div>` +
-        `<div class="metric"><span>Latency TB / p95 / p99</span><b>${m.lock.avg}/${m.lock.p95}/${m.lock.p99} ms</b></div>` +
-        `<div class="metric"><span>Xổ TB / p95 / p99</span><b>${m.draw.avg}/${m.draw.p95}/${m.draw.p99} ms</b></div>` +
-        `<div class="metric ${m.consistent ? 'ok' : 'bad'}"><span>Nhất quán tiền thưởng</span><b>${m.consistent ? 'ĐẠT' : 'KHÔNG ĐẠT'}</b></div>`;
-      const group = groupFor('load-test.js', 'load');
-      group.tests.set('Load Test · ' + event.users + ' bot', {
-        name: 'Load Test · ' + event.users + ' bot',
-        status: m.consistent ? 'PASS' : 'FAIL', durationMs: 0, diagnostics: [],
-        input: event.input, output: event.output,
-      });
-      render(); return;
-    }
-    if (event.type === 'run:done') {
-      state.runDuration = event.durationMs || 0;
-      finish();
-      // SSE tự reconnect khi server đóng stream -> phải đóng rõ ở client.
-      if (state.source) { state.source.close(); state.source = null; }
+    if (event.type === 'run:start') {
+      resetRun(event.suite);
+      state.bannerLabel = event.label || state.bannerLabel;
+      state.bannerTypes = event.typesLabel || state.bannerTypes;
       return;
+    }
+    if (event.type === 'progress') { updateBannerProgress(event); return; }
+    if (event.type === 'test:start') { createRow(event); updateBannerProgress({ currentTestName: event.name }); return; }
+    if (event.type === 'test:diagnostic') {
+      const group = ensureGroup(event.file || 'unknown.test.js', state.selected);
+      let found = null;
+      for (const test of group.tests.values()) if (test.key === event.name) found = test;
+      if (found) found.diagnostics.push(event.message);
+      return;
+    }
+    if (event.type === 'test:pass' || event.type === 'test:fail') { finishTest(event); return; }
+    if (event.type === 'load:log') { log(event.line); return; }
+    if (event.type === 'load:metrics') { renderLoadMetrics(event); return; }
+    if (event.type === 'run:done' || event.type === 'done') {
+      state.percent = 100; state.duration = event.durationMs || state.duration;
+      if (typeof event.total === 'number') state.total = Math.max(state.total, event.total);
+      $('bannerTitle').textContent = 'Hoàn tất: ' + state.bannerLabel;
+      $('bannerCurrent').textContent = 'Đang kiểm tra: —';
+      updateStats();
+      setWaitingStatus(event.suite, state.fail ? 'FAIL' : 'PASS');
+      unlockButtons();
+      if (state.source) { state.source.close(); state.source = null; }
     }
   }
 
   function start(suite) {
+    if (state.isRunning) return;
+    const clicked = document.querySelector(`[data-suite="${suite}"]`);
+    lockButtons(clicked);
+    selectSuite(suite);
     if (state.source) state.source.close();
-    reset(suite);
-    const users = Number($('users').value) || 50;
-    const source = new EventSource('/api/run?suite=' + encodeURIComponent(suite) + '&users=' + users);
+    const source = new EventSource('/api/run?suite=' + encodeURIComponent(suite) + '&users=' + state.bots);
     state.source = source;
     source.onmessage = (message) => {
       try { handle(JSON.parse(message.data)); } catch (e) { log('Lỗi parse event: ' + e.message); }
     };
-    source.onerror = () => { if (state.running) { finish(); log('⚠ Kết nối SSE bị ngắt.'); } source.close(); };
+    source.onerror = () => {
+      if (state.isRunning) {
+        unlockButtons();
+        $('statusLine').textContent = 'Mất kết nối SSE — hãy thử lại.';
+        $('bannerCurrent').textContent = 'Đang kiểm tra: —';
+      }
+      source.close(); state.source = null;
+    };
   }
 
   document.querySelectorAll('[data-suite]').forEach((button) => button.addEventListener('click', () => start(button.dataset.suite)));
-  $('btnLoad').addEventListener('click', () => start('load'));
-  $('filter').addEventListener('change', (event) => { state.filter = event.target.value; render(); });
-  render();
+  document.querySelectorAll('[data-bots]').forEach((button) => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-bots]').forEach((b) => b.classList.remove('active'));
+    button.classList.add('active');
+    state.bots = Number(button.dataset.bots);
+    $('botsCustom').value = state.bots;
+    $('botsLabel').textContent = state.bots;
+  }));
+  $('botsCustom').addEventListener('change', (event) => {
+    state.bots = Math.max(1, Math.min(250, Number(event.target.value) || 50));
+    event.target.value = state.bots;
+    $('botsLabel').textContent = state.bots;
+    document.querySelectorAll('[data-bots]').forEach((b) => b.classList.toggle('active', Number(b.dataset.bots) === state.bots));
+  });
+  document.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach((b) => b.classList.remove('active'));
+    button.classList.add('active');
+    state.filter = button.dataset.filter;
+    applyFilter();
+  }));
+  $('toggleExpand').addEventListener('click', toggleExpandAll);
+
+  async function init() {
+    try {
+      const response = await fetch('/api/suites');
+      const data = await response.json();
+      for (const suite of data.suites) state.suites.set(suite.id, suite);
+      applySuiteMeta();
+      renderWaiting();
+      selectSuite('all');
+      updateStats();
+    } catch (error) {
+      $('statusLine').textContent = 'Không tải được danh mục test: ' + error.message;
+    }
+  }
+  init();
 })();
 </script>
 </body>

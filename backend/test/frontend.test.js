@@ -196,10 +196,10 @@ test('test dashboard: SSE runner, structured IO logs, Web UI scripts and dashboa
   assert.match(concurrencyTest, /logTestIO\(t,/);
   assert.match(loadTest, /console\.log\('__IO__:'/);
 
-  assert.match(dashboard, /Chạy Tất Cả/);
-  assert.match(dashboard, /Chạy Load Test/);
-  assert.match(dashboard, /Chỉ hiện Pass/);
-  assert.match(dashboard, /Chỉ hiện Fail/);
+  assert.match(dashboard, /data-suite="regression"/);
+  assert.match(dashboard, /Bắt đầu Load Test/);
+  assert.match(dashboard, /Đạt \(Pass\)/);
+  assert.match(dashboard, /Lỗi \(Fail\)/);
   assert.match(dashboard, /EventSource/);
   assert.match(dashboard, /INPUT \(Dữ liệu đầu vào\)/);
   assert.match(dashboard, /OUTPUT \(Kết quả thực tế\)/);
@@ -211,6 +211,71 @@ test('test dashboard: SSE runner, structured IO logs, Web UI scripts and dashboa
   assert.equal(backendPkg.scripts['test:ui'], 'node test/ui-server.js');
   assert.match(cli, /kind: 'ui'/);
   assert.match(cli, /ui-server\.js/);
+});
+
+test('dashboard v2: suite catalog, realtime percent stream, 2-column UI and fail highlighting', () => {
+  const uiServer = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'ui-server.js'), 'utf8');
+  const loadTest = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'load-test.js'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(frontend, 'test-dashboard.html'), 'utf8');
+
+  // /api/suites with all 7 groups and Vietnamese type labels.
+  assert.match(uiServer, /\/api\/suites/);
+  assert.match(uiServer, /SUITE_LIST/);
+  for (const id of ['all', 'regression', 'server', 'frontend', 'audio', 'concurrency', 'load']) {
+    assert.ok(uiServer.includes(`${id}: {`), `thiếu suite ${id}`);
+  }
+  assert.match(uiServer, /Unit \+ Integration \+ Regression \+ Smoke \+ Concurrency \+ Load Test/);
+  assert.match(uiServer, /Unit \+ Integration \+ Smoke \+ Regression/);
+  assert.match(uiServer, /Concurrency & Spike/);
+  assert.match(uiServer, /Load & Stress/);
+
+  // Realtime progress: enqueue counts total, pass/fail counts completed, capped at 99, done=100.
+  assert.match(uiServer, /test:enqueue/);
+  assert.match(uiServer, /total\+\+; progress\(\)/);
+  assert.match(uiServer, /completed\+\+/);
+  assert.match(uiServer, /Math\.min\(99, Math\.round\(\(completed \/ Math\.max\(total, 1\)\) \* 100\)\)/);
+  assert.match(uiServer, /category: currentTestName \? categoryFor\(currentFile, currentTestName\) : null/);
+  assert.match(uiServer, /type: 'done'/);
+
+  // Load stages + 150ms throttle + metrics keys.
+  for (const stage of ['init', 'joined', 'locked', 'draw']) assert.ok(loadTest.includes(`stage: '${stage}'`));
+  assert.match(uiServer, /150 - \(Date\.now\(\) - lastProgressAt\)/);
+  assert.match(uiServer, /sendProgress\(10, 'Khởi tạo'\)/);
+  assert.match(uiServer, /sendProgress\(100, 'Đối soát tiền giải'\)/);
+  assert.match(uiServer, /avg: parsed\.lock\.avg, p95: parsed\.lock\.p95, p99: parsed\.lock\.p99/);
+
+  // Two-column layout + sidebar cards.
+  assert.match(dashboard, /grid-template-columns:320px minmax\(0,1fr\)/);
+  assert.match(dashboard, /Chạy Toàn Bộ Kiểm Thử/);
+  assert.match(dashboard, /data-suite="regression"/);
+  assert.match(dashboard, /Regression & Nghiệp vụ/);
+  assert.match(dashboard, /Concurrency Test/);
+  assert.match(dashboard, /Load Test \(Chịu tải\)/);
+  assert.match(dashboard, /Số người chơi ảo \(Bots\)/);
+  assert.match(dashboard, /data-bots="20"/);
+  assert.match(dashboard, /data-bots="100"/);
+  assert.match(dashboard, /Đang chọn/);
+  assert.match(dashboard, /CHỜ CHẠY/);
+
+  // Immediate lock, spinner, status line, segmented tabs, expand all.
+  assert.match(dashboard, /state\.isRunning = true/);
+  assert.match(dashboard, /classList\.add\('locked'\)/);
+  assert.match(dashboard, /@keyframes spin/);
+  assert.match(dashboard, /Đang khởi chạy tiến trình kiểm thử, vui lòng chờ/);
+  assert.match(dashboard, /segmented/);
+  assert.match(dashboard, /Mở rộng tất cả/);
+
+  // Fail handling: auto expand, red banner, scrollIntoView with flash.
+  assert.match(dashboard, /state\.expanded\.add\(test\.key\)/);
+  assert.match(dashboard, /test\.row\.querySelector\('.detail'\)\.hidden = false/);
+  assert.match(dashboard, /Có ca kiểm thử bị FAIL/);
+  assert.match(dashboard, /scrollIntoView\(\{ behavior: 'smooth'/);
+  assert.match(dashboard, /classList\.add\('flash'\)/);
+
+  // Progress updates touch DOM references directly, never re-render whole list.
+  const progressFn = dashboard.slice(dashboard.indexOf('function updateStats('), dashboard.indexOf('function lockButtons('));
+  assert.doesNotMatch(progressFn, /innerHTML/);
+  assert.match(progressFn, /style\.width = state\.percent/);
 });
 
 test('startup table, --open flag, Windows launchers and interactive test CLI', () => {

@@ -97,6 +97,7 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   let drawRollingAt = 0;
 
   console.log(`🚀 LOTO TET LOAD TEST · ${players} người chơi ảo · ${url}`);
+  console.log('__PROGRESS__:' + JSON.stringify({ stage: 'init', percent: 10 }));
   try {
     const ping = await fetch(`${url}/api/state`);
     if (!ping.ok) throw new Error(`HTTP ${ping.status}`);
@@ -156,6 +157,7 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   })));
   row('Thời gian tham gia', `${Date.now() - joinStart}ms`);
   row('Nhận vé / bị từ chối', `${assigned} / ${rejected}`);
+  console.log('__PROGRESS__:' + JSON.stringify({ stage: 'joined', percent: 30 }));
 
   hr('2) Chốt vé (đồng thời)');
   await Promise.all(clients.map((client, i) => new Promise((resolve) => {
@@ -176,6 +178,8 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
     client.emit('ticket:lock', { playerId: `load-${i + 1}` });
   })));
 
+  console.log('__PROGRESS__:' + JSON.stringify({ stage: 'locked', percent: 50 }));
+
   hr('3) Quay số liên tục');
   // Giả lập TV trả kết quả bóng lăn NGAY (không đợi autoRollSeconds) để test nhanh.
   let finishedOk = false;
@@ -193,6 +197,10 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
     drawResults++;
     if (drawRollingAt) drawLatency.push(Date.now() - drawRollingAt);
     drawRollingAt = 0;
+    console.log('__PROGRESS__:' + JSON.stringify({
+      stage: 'draw', draws: drawResults,
+      percent: Math.min(95, 50 + drawResults * 0.5),
+    }));
   });
   admin.on('draw:error', () => { drawErrors++; });
   admin.on('game:finished', () => { finishedOk = true; });
