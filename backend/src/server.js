@@ -17,7 +17,7 @@ const QRCode = require('qrcode');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { Server } = require('socket.io');
-
+const stateMod = require('./state');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -746,7 +746,7 @@ function giveTicket(ticket, playerId, name, socketId) {
   ticket.joinedAt = Date.now();
   // Đánh dấu các số đã xổ trước đó
   ticket.rows.forEach((r) => {
-    r.cells.forEach((c) => { if (c && game.drawn.includes(c.value)) c.matched = true; });
+    r.cells.forEach((c) => { if (c && stateMod.hasDrawn(c.value)) c.matched = true; });
     const unmatched = rowNumbers(r).filter((c) => !c.matched).length;
     r.complete = unmatched === 0;
     r.awarded = unmatched === 0;
@@ -806,14 +806,14 @@ function doDraw(manualNumber, onDone, durationOverride) {
   let manualNum = null;
   if (manual) {
     manualNum = Number(manualNumber);
-    if (!Number.isInteger(manualNum) || manualNum < cfg.minNumber || manualNum > cfg.maxNumber || game.drawn.includes(manualNum)) {
+    if (!Number.isInteger(manualNum) || manualNum < cfg.minNumber || manualNum > cfg.maxNumber || stateMod.hasDrawn(manualNum)) {
       io.emit('draw:error', { message: 'Số không hợp lệ hoặc đã được xổ.' });
       return;
     }
   } else {
     let hasAvailable = false;
     for (let n = cfg.minNumber; n <= cfg.maxNumber; n++) {
-      if (!game.drawn.includes(n)) { hasAvailable = true; break; }
+      if (!stateMod.hasDrawn(n)) { hasAvailable = true; break; }
     }
     if (!hasAvailable) { io.emit('draw:error', { message: 'Đã xổ hết các số!' }); return; }
   }
@@ -1059,7 +1059,7 @@ function nextAutoDraw() {
   // Hết số thì dừng
   const available = [];
   for (let n = game.config.minNumber; n <= game.config.maxNumber; n++) {
-    if (!game.drawn.includes(n)) available.push(n);
+    if (!stateMod.hasDrawn(n)) available.push(n);
   }
   if (!available.length) {
     autoRunning = false;
@@ -1088,6 +1088,8 @@ function nextAutoDraw() {
 
 /* ---------------- Socket ---------------- */
 io.on('connection', (socket) => {
+  // realtime.js quản lý client + sync:full khi mới kết nối.
+  try { require('./realtime').addClient(socket); } catch (e) {}
   socket.use(([event], next) => {
     const privileged = new Set([
       'host:register', 'settings:update', 'config:update', 'game:new', 'game:finish',
@@ -1243,11 +1245,13 @@ io.on('connection', (socket) => {
     previewTickets = [];
     io.emit('draw:cancel');
     game = freshGame({ maxPlayers, rollSeconds, autoRollSeconds, betPerTicket, maxWinners });
+stateMod.syncTicketMap();
     persistState();
     io.emit('game:reset', { config: game.config });
     emitHostState();
     sendQR();
     assignWaitingPlayers();
+stateMod.syncTicketMap();
   });
 
   socket.on('game:new', () => {
@@ -1259,12 +1263,14 @@ io.on('connection', (socket) => {
     previewTickets = [];
     io.emit('draw:cancel');
     game = freshGame(game.config);
+stateMod.syncTicketMap();
     persistState();
     io.emit('game:reset', { config: game.config });
     io.emit('auto:state', { running: false });
     emitHostState();
     sendQR();
     assignWaitingPlayers();
+stateMod.syncTicketMap();
   });
 
   socket.on('game:finish', () => {
@@ -1296,12 +1302,14 @@ io.on('connection', (socket) => {
     // Xóa thông báo Kinh / overlay vinh danh trên TV trước khi reset lồng cầu.
     io.emit('kinh:clear', { previousGameId: savedGameId, saved });
     game = freshGame(game.config);
+stateMod.syncTicketMap();
     persistState();
     io.emit('game:reset', { config: game.config, saved });
     io.emit('auto:state', { running: false });
     emitHostState();
     sendQR();
     assignWaitingPlayers();
+stateMod.syncTicketMap();
     socket.emit('admin:next-round-done', { saved, gameId: game.id });
   });
 
@@ -1320,7 +1328,7 @@ io.on('connection', (socket) => {
     if (game !== snapshot || (gameId && gameId !== game.id)) return;
     const num = Number(number);
     const cfg = game.config;
-    if (!Number.isInteger(num) || num < cfg.minNumber || num > cfg.maxNumber || game.drawn.includes(num)) {
+    if (!Number.isInteger(num) || num < cfg.minNumber || num > cfg.maxNumber || stateMod.hasDrawn(num)) {
       io.emit('draw:error', { message: 'Số từ lồng cầu không hợp lệ. Đang thử lại…' });
       return;
     }
@@ -1480,6 +1488,7 @@ io.on('connection', (socket) => {
         return;
       }
       free.slice(0, needMore).forEach((t) => giveTicket(t, playerId, name, socket.id));
+      stateMod.syncTicketMap();
       owned = findTickets(playerId);
     }
     if (!owned.length) {
@@ -1528,7 +1537,9 @@ io.on('connection', (socket) => {
       return;
     }
     releaseTicket(cur);
+    stateMod.syncTicketMap();
     giveTicket(next, playerId, name, socket.id);
+    stateMod.syncTicketMap();
     persistState();
     socket.emit('ticket:assigned', multiPayload(playerId, next.code));
     socket.emit('ticket:changed', { code: next.code });
@@ -1631,6 +1642,7 @@ io.on('connection', (socket) => {
     });
     waitingPlayers = waitingPlayers.filter((w) => w.playerId !== playerId);
     joiningPlayers.delete(playerId);
+    stateMod.syncTicketMap();
     // Hoàn tiền nếu ván đã bắt đầu
     if (refundBet > 0 && playerName) {
       const account = accountFor(playerName);
@@ -1829,6 +1841,7 @@ io.on('connection', (socket) => {
     // Giữ cấu hình ván hiện tại, tạo lại state sạch.
     const config = Object.assign({}, game.config);
     game = freshGame(config);
+stateMod.syncTicketMap();
     waitingPlayers = [];
     joiningPlayers.clear();
     previewTickets = [];
@@ -1979,3 +1992,4 @@ module.exports = {
   persistState, emitHostState, emitHostStateThrottled,
   doDraw, commitDraw, nextAutoDraw, start: () => {},
 };
+try { require('./state').syncTicketMap(); } catch (e) {}
