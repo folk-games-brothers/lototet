@@ -1,4 +1,4 @@
-/* Logic nghiệp vụ: sinh lưới vé, Kinh, chia giải, trạng thái ván. */
+/* Logic nghiệp vụ: sinh lưới vé, Kinh, tài chính, chia giải, cấn nợ, khóa cài đặt. */
 const ROWS = 9;
 const COLS = 9;
 const PER_ROW = 5;
@@ -11,9 +11,10 @@ function shuffle(arr) {
   return arr;
 }
 
-function game() {
-  return require('./server').state.game;
-}
+function server() { return require('./server'); }
+function state() { return server().state; }
+function game() { return state().game; }
+function finances() { return state().finances; }
 
 function buildGrid(drawn) {
   const used = new Set(drawn || []);
@@ -53,6 +54,30 @@ function gridSignature(rows) {
 
 function rowNumbers(row) { return row.cells.filter(Boolean); }
 
+function financeKey(name) { return server().financeKey(name); }
+function accountFor(name) {
+  const financesObj = finances();
+  const key = financeKey(name);
+  if (!financesObj[key]) financesObj[key] = { name: String(name || ''), deposited: 0, winnings: 0, totalWon: 0, debt: 0, balance: 0, transactions: [] };
+  const account = financesObj[key];
+  if (!Number.isFinite(Number(account.deposited))) account.deposited = Number(account.balance) || 0;
+  if (!Number.isFinite(Number(account.balance))) account.balance = Number(account.deposited) || 0;
+  if (!Number.isFinite(Number(account.totalWon))) account.totalWon = 0;
+  if (!Array.isArray(account.transactions)) account.transactions = [];
+  return account;
+}
+
+function leaderboard() {
+  return Object.values(finances())
+    .map((account) => ({
+      name: account.name,
+      totalWon: Number(account.totalWon) || 0,
+      winnings: Number(account.winnings) || 0,
+    }))
+    .filter((entry) => entry.totalWon > 0)
+    .sort((a, b) => b.totalWon - a.totalWon || a.name.localeCompare(b.name, 'vi'));
+}
+
 function prizePool() {
   const g = game();
   const sold = g.tickets.filter((t) => t.owner && t.locked).length;
@@ -72,7 +97,72 @@ function isRoundComplete() {
   return limit > 0 ? g.winners.length >= limit : g.winners.length > 0;
 }
 
+function payRewardFromWinnings(account) {
+  const reward = Number(account.winnings) || 0;
+  if (reward <= 0) return 0;
+  account.balance += reward;
+  account.winnings = 0;
+  return reward;
+}
+
+function offsetDebtWithReward(account) {
+  const used = Math.min(Number(account.winnings) || 0, Number(account.debt) || 0);
+  if (used <= 0) return 0;
+  account.winnings -= used;
+  account.debt -= used;
+  return used;
+}
+
+function lockedSettingFields() {
+  return ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
+}
+
+function isRoundStarted(game, rolling) {
+  return game.drawn.length > 0 || !!rolling || game.tickets.some((t) => t.locked);
+}
+
+function settleGame() {
+  const s = server();
+  const g = state().game;
+  const financesObj = state().finances;
+  if (g.settled) return false;
+  const paidPlayers = new Set();
+  (g.winners || []).forEach((w) => {
+    if (!g.topWinners.find((t) => t.playerId === w.playerId)) {
+      g.topWinners.push({ playerId: w.playerId, name: w.name, wins: 1 });
+    } else {
+      const t = g.topWinners.find((x) => x.playerId === w.playerId);
+      t.wins = (t.wins || 0) + 1;
+      t.name = w.name;
+    }
+    const account = accountFor(w.name);
+    const amount = prizePerWinner();
+    const debtOffset = Math.min(Number(account.debt) || 0, amount);
+    account.winnings += amount;
+    account.totalWon += amount;
+    account.balance += amount - debtOffset;
+    s.appendFinanceTransaction(account, 'prize', amount, { gameId: g.id });
+    if (debtOffset > 0) {
+      account.debt -= debtOffset;
+      s.appendFinanceTransaction(account, 'debt-offset', -debtOffset, {
+        reason: 'Trừ nợ từ tiền thưởng', gameId: g.id,
+      });
+    }
+    if (g.payments[w.playerId]) g.payments[w.playerId].debt = account.debt;
+    paidPlayers.add(w.playerId);
+  });
+  g.settled = true;
+  s.saveFinances();
+  s.persistState();
+  s.appendHistory();
+  paidPlayers.forEach((playerId) => s.emitWalletSummary(playerId));
+  return true;
+}
+
 module.exports = {
-  buildGrid, gridSignature, rowNumbers, prizePool, prizePerWinner, isRoundComplete,
   ROWS, COLS, PER_ROW,
+  buildGrid, gridSignature, rowNumbers, financeKey, accountFor, leaderboard,
+  prizePool, prizePerWinner, isRoundComplete, payRewardFromWinnings,
+  offsetDebtWithReward, lockedSettingFields, isRoundStarted, settleGame,
+  shuffle,
 };

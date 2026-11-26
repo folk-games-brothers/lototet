@@ -92,9 +92,19 @@ const PER_ROW = 5;   // 5 số / hàng (đục 4 ô)
 /* ---------------- Trạng thái game ---------------- */
 // Chữ ký của vé = toàn bộ lưới (giá trị số + ô đục). Dùng để đảm bảo 200 vé KHÔNG trùng nhau.
 const gameEngine = require('./game-engine');
+const accountFor = gameEngine.accountFor;
+const leaderboard = gameEngine.leaderboard;
+const settleGame = gameEngine.settleGame;
+const payRewardFromWinnings = gameEngine.payRewardFromWinnings;
+const offsetDebtWithReward = gameEngine.offsetDebtWithReward;
+const lockedSettingFields = gameEngine.lockedSettingFields;
+const isRoundStarted = gameEngine.isRoundStarted;
 const buildGrid = gameEngine.buildGrid;
 const gridSignature = gameEngine.gridSignature;
 const rowNumbers = gameEngine.rowNumbers;
+const prizePool = gameEngine.prizePool;
+const prizePerWinner = gameEngine.prizePerWinner;
+const isRoundComplete = gameEngine.isRoundComplete;
 
 function freshGame(config) {
   const cfg = Object.assign({
@@ -191,17 +201,6 @@ function uniquePlayerName(base, ignorePlayerId) {
 function financeKey(name) {
   return String(name || '').trim().toLocaleLowerCase('vi');
 }
-function accountFor(name) {
-  const key = financeKey(name);
-  if (!finances[key]) finances[key] = { name: String(name || ''), deposited: 0, winnings: 0, totalWon: 0, debt: 0, balance: 0, transactions: [] };
-  const account = finances[key];
-  if (!Number.isFinite(Number(account.deposited))) account.deposited = Number(account.balance) || 0;
-  if (!Number.isFinite(Number(account.balance))) account.balance = Number(account.deposited) || 0;
-  // totalWon = tổng tiền thắng TÍCH LŨY (không bị trừ khi trả thưởng/cấn nợ).
-  if (!Number.isFinite(Number(account.totalWon))) account.totalWon = 0;
-  if (!Array.isArray(account.transactions)) account.transactions = [];
-  return account;
-}
 function saveFinances() { writeJSON(FINANCE_FILE, finances); }
 function positiveMoney(value) {
   const amount = Math.floor(Number(value));
@@ -273,17 +272,6 @@ function renameFinanceAccount(oldName, newName) {
   target.name = newName;
   delete finances[oldKey];
 }
-function leaderboard() {
-  // Chỉ xếp hạng theo thành tích totalWon > 0, giảm dần.
-  return Object.values(finances)
-    .map((account) => ({
-      name: account.name,
-      totalWon: Number(account.totalWon) || 0,
-      winnings: Number(account.winnings) || 0, // giữ alias cho client/test cũ
-    }))
-    .filter((entry) => entry.totalWon > 0)
-    .sort((a, b) => b.totalWon - a.totalWon || a.name.localeCompare(b.name, 'vi'));
-}
 
 function playerProgress(ticket) {
   let minRemaining = 99;
@@ -337,8 +325,6 @@ function appendHistory() {
   });
   writeJSON(HISTORY_FILE, history.slice(0, 50));
 }
-const prizePool = gameEngine.prizePool;
-const prizePerWinner = gameEngine.prizePerWinner;
 function lockedPlayers() {
   const map = new Map();
   game.tickets.filter((t) => t.locked && t.owner).forEach((t) => {
@@ -627,43 +613,8 @@ function setRulesVisible(visible) {
 }
 
 // Ván được coi là kết thúc khi đủ số người Kinh (hoặc maxWinners = 0 và có >= 1 Kinh).
-const isRoundComplete = gameEngine.isRoundComplete;
 
 // Chốt ván: trả thưởng vào ví + thành tích, ghi lịch sử. Trả false nếu đã chốt trước đó.
-function settleGame() {
-  if (game.settled) return false;
-  const paidPlayers = new Set();
-  (game.winners || []).forEach((w) => {
-    if (!game.topWinners.find((t) => t.playerId === w.playerId)) {
-      game.topWinners.push({ playerId: w.playerId, name: w.name, wins: 1 });
-    } else {
-      const t = game.topWinners.find((x) => x.playerId === w.playerId);
-      t.wins = (t.wins || 0) + 1;
-      t.name = w.name;
-    }
-    const account = accountFor(w.name);
-    const amount = prizePerWinner();
-    const debtOffset = Math.min(Number(account.debt) || 0, amount);
-    account.winnings += amount;       // reward/pendingReward - dùng trả thưởng & cấn nợ
-    account.totalWon += amount;       // thành tích tích lũy - KHÔNG bị trừ khi trả thưởng
-    account.balance += amount - debtOffset;
-    appendFinanceTransaction(account, 'prize', amount, { gameId: game.id });
-    if (debtOffset > 0) {
-      account.debt -= debtOffset;
-      appendFinanceTransaction(account, 'debt-offset', -debtOffset, {
-        reason: 'Trừ nợ từ tiền thưởng', gameId: game.id,
-      });
-    }
-    if (game.payments[w.playerId]) game.payments[w.playerId].debt = account.debt;
-    paidPlayers.add(w.playerId);
-  });
-  game.settled = true;
-  saveFinances();
-  persistState();
-  appendHistory();
-  paidPlayers.forEach((playerId) => emitWalletSummary(playerId));
-  return true;
-}
 
 /* ---------------- QR ---------------- */
 function buildJoinUrl() { return `http://${getLocalIP()}:${PORT}/play.html`; }
@@ -1129,8 +1080,8 @@ io.on('connection', (socket) => {
   // Auto-save từng ô khi rời ô / Enter. Các ô bị khóa trong ván bị từ chối.
   socket.on('settings:update', (s) => {
     if (!s) return;
-    const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
-    const roundStarted = game.drawn.length > 0 || rolling || game.tickets.some((t) => t.locked);
+    const LOCKED_FIELDS = gameEngine.lockedSettingFields();
+    const roundStarted = gameEngine.isRoundStarted(game, rolling);
     for (const key of LOCKED_FIELDS) {
       if (s[key] !== undefined && roundStarted) {
         socket.emit('settings:error', {
@@ -1174,8 +1125,8 @@ io.on('connection', (socket) => {
 
   socket.on('config:update', (cfg) => {
     // Chặn luôn đường vòng: config:update không được đổi 4 ô bị khóa trong ván.
-    const LOCKED_FIELDS = ['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'];
-    const roundStarted = game.drawn.length > 0 || rolling || game.tickets.some((t) => t.locked);
+    const LOCKED_FIELDS = gameEngine.lockedSettingFields();
+    const roundStarted = gameEngine.isRoundStarted(game, rolling);
     if (cfg && LOCKED_FIELDS.some((key) => cfg[key] !== undefined) && roundStarted) {
       socket.emit('settings:error', {
         message: 'Thông số này đã bị khóa trong ván. Tự mở khóa khi Qua ván mới.',
@@ -1751,10 +1702,8 @@ stateMod.syncTicketMap();
     const player = lockedPlayers().find((entry) => entry.playerId === playerId);
     if (!player) return;
     const account = accountFor(player.name);
-    const reward = Number(account.winnings) || 0;
+    const reward = gameEngine.payRewardFromWinnings(account);
     if (reward <= 0) return;
-    account.balance += reward;
-    account.winnings = 0;
     appendFinanceTransaction(account, 'reward-paid', reward, { reason: 'Trả thưởng' });
     account.transactions = account.transactions.slice(-200);
     saveFinances();
@@ -1767,10 +1716,8 @@ stateMod.syncTicketMap();
     const player = lockedPlayers().find((entry) => entry.playerId === playerId);
     if (!player) return;
     const account = accountFor(player.name);
-    const used = Math.min(Number(account.winnings) || 0, Number(account.debt) || 0);
+    const used = gameEngine.offsetDebtWithReward(account);
     if (used <= 0) return;
-    account.winnings -= used;
-    account.debt -= used;
     appendFinanceTransaction(account, 'reward-offset-debt', -used, { reason: 'Cấn nợ từ tiền thưởng' });
     account.transactions = account.transactions.slice(-200);
     saveFinances();
@@ -1937,11 +1884,12 @@ module.exports = {
   app, server, io, PORT, DATA_DIR,
   state,
   game: () => game, finances: () => finances,
-  getLocalIP, buildJoinUrl, freshGame, accountFor, leaderboard,
+  getLocalIP, buildJoinUrl, freshGame, financeKey, accountFor, leaderboard,
   prizePool, prizePerWinner, lockedPlayers, adminPlayers, tvParticipants,
   isRoundComplete, settleGame, setRulesVisible,
   buildGrid, gridSignature, rowNumbers, positiveMoney, maxTicketsPerPlayer,
-  persistState, emitHostState, emitHostStateThrottled,
+  persistState, saveFinances, appendHistory, appendFinanceTransaction, emitWalletSummary,
+  emitHostState, emitHostStateThrottled,
   doDraw, commitDraw, nextAutoDraw, start: () => {},
 };
 try { require('./state').syncTicketMap(); } catch (e) {}

@@ -347,8 +347,8 @@ test('business audit: rounded prize, locked settings bypass, locked-only Kinh an
   assert.match(gameEngine, /Math\.floor\(pool \/ g\.winners\.length \/ 1000\) \* 1000/);
 
   // Admin cannot bypass hard locks through config:update (works after F5 too).
-  assert.match(server, /socket\.on\('config:update', \(cfg\) => \{[\s\S]{0,400}LOCKED_FIELDS/);
-  assert.match(server, /roundStarted = game\.drawn\.length > 0 \|\| rolling \|\| game\.tickets\.some\(\(t\) => t\.locked\)/);
+  assert.match(server, /socket\.on\('config:update', \(cfg\) => \{[\s\S]{0,400}gameEngine\.lockedSettingFields\(\)/);
+  assert.match(server, /gameEngine\.isRoundStarted\(game, rolling\)/);
 
   // Only locked (chốt) tickets are matched / shown as near-Kinh; prizePool already filters locked.
   assert.match(server, /if \(!ticket\.owner \|\| !ticket\.locked\) return;/);
@@ -361,10 +361,13 @@ test('business audit: rounded prize, locked settings bypass, locked-only Kinh an
   // Finance buttons never touch totalWon except reset-achievements.
   const payReward = server.slice(server.indexOf("socket.on('admin:pay-reward'"), server.indexOf("socket.on('admin:offset-debt'"));
   const offsetDebt = server.slice(server.indexOf("socket.on('admin:offset-debt'"), server.indexOf("socket.on('admin:reset-achievements'"));
-  assert.match(payReward, /account\.winnings = 0;/);
+  assert.match(payReward, /gameEngine\.payRewardFromWinnings\(account\)/);
   assert.doesNotMatch(payReward, /account\.totalWon/);
-  assert.match(offsetDebt, /account\.winnings -= used;/);
+  assert.match(offsetDebt, /gameEngine\.offsetDebtWithReward\(account\)/);
   assert.doesNotMatch(offsetDebt, /account\.totalWon/);
+  // Mutations now live in game-engine, still only touch winnings.
+  assert.match(gameEngine, /account\.winnings = 0;/);
+  assert.match(gameEngine, /account\.winnings -= used;/);
 
   // Chốt vé: chống chốt đúp và chặn chốt muộn khi ván đã quay.
   assert.match(server, /if \(owned\.every\(\(t\) => t\.locked\)\)/);
@@ -613,7 +616,7 @@ test('round settings: two ticket fields, real defaults, auto-save, in-round lock
   assert.match(host, /function applyConfigLock\(/);
   assert.match(html, /Tự mở khóa khi Qua ván mới/);
   assert.match(css, /\.field\.is-locked input \{[^}]*cursor: not-allowed/);
-  assert.match(server, /const LOCKED_FIELDS = \['betPerTicket', 'maxPlayers', 'maxTicketsPerPlayer', 'maxWinners'\]/);
+  assert.match(server, /const LOCKED_FIELDS = gameEngine\.lockedSettingFields\(\);/);
 
   // autoRoll >= roll + 3.5 and bot speech cadence >= 2.5s.
   assert.match(host, /value < roll \+ 3\.5/);
@@ -638,8 +641,9 @@ test('Kinh progress keeps auto draw running; full limit settles, pays and opens 
   assert.match(server, /setTimeout\(nextAutoDraw, botEnabled \? 2500 : 400\)/);
   assert.match(server, /io\.emit\('game:limit-reached'/);
   assert.match(server, /if \(settleGame\(\)\)/);
-  assert.match(server, /account\.winnings \+= amount;/);
-  assert.match(server, /account\.totalWon \+= amount;/);
+  const gameEngineForKinh = fs.readFileSync(path.join(frontend, '../backend/src/game-engine.js'), 'utf8');
+  assert.match(gameEngineForKinh, /account\.winnings \+= amount;/);
+  assert.match(gameEngineForKinh, /account\.totalWon \+= amount;/);
   assert.match(server, /ticketRows: serializeRows\(ticket\)/);
   assert.match(host, /socket\.on\('kinh:progress'/);
   assert.match(tv, /socket\.on\('kinh:progress'/);
@@ -667,21 +671,23 @@ test('winnings reward is separate from totalWon; leaderboard filters by totalWon
   const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
   const html = fs.readFileSync(path.join(frontend, 'index.html'), 'utf8');
 
+  const gameEngine = fs.readFileSync(path.join(frontend, '../backend/src/game-engine.js'), 'utf8');
+
   // totalWon default 0, added alongside reward (winnings) on a win.
-  assert.match(server, /totalWon:\s*0/);
-  assert.match(server, /account\.winnings \+= amount;/);
-  assert.match(server, /account\.totalWon \+= amount;/);
+  assert.match(gameEngine, /totalWon: 0/);
+  assert.match(gameEngine, /account\.winnings \+= amount;/);
+  assert.match(gameEngine, /account\.totalWon \+= amount;/);
   // Paying reward / offsetting debt only touches winnings, never totalWon.
   assert.match(server, /socket\.on\('admin:pay-reward'/);
-  assert.match(server, /account\.winnings = 0;/);
+  assert.match(gameEngine, /account\.winnings = 0;/);
   assert.match(server, /socket\.on\('admin:offset-debt'/);
-  assert.match(server, /account\.winnings -= used;/);
-  assert.match(server, /account\.debt -= used;/);
+  assert.match(gameEngine, /account\.winnings -= used;/);
+  assert.match(gameEngine, /account\.debt -= used;/);
 
   // Leaderboard filters totalWon > 0 and sorts by totalWon.
-  assert.match(server, /function leaderboard\(/);
-  assert.match(server, /\.filter\(\(entry\) => entry\.totalWon > 0\)/);
-  assert.match(server, /b\.totalWon - a\.totalWon/);
+  assert.match(gameEngine, /function leaderboard\(/);
+  assert.match(gameEngine, /\.filter\(\(entry\) => entry\.totalWon > 0\)/);
+  assert.match(gameEngine, /b\.totalWon - a\.totalWon/);
   assert.match(tv, /Chưa có ai ghi nhận thành tích/);
   assert.match(host, /Chưa có ai ghi nhận thành tích/);
 
