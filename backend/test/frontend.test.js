@@ -204,6 +204,7 @@ test('test dashboard: SSE runner, structured IO logs, Web UI scripts and dashboa
   assert.match(dashboard, /INPUT \(Dữ liệu đầu vào\)/);
   assert.match(dashboard, /OUTPUT \(Kết quả thực tế\)/);
   assert.match(dashboard, /Expected vs Actual/);
+  assert.match(dashboard, /state\.source\.close\(\)/); // tránh EventSource tự reconnect sau run:done
   assert.match(dashboard, /p95/);
 
   assert.equal(rootPkg.scripts['test:ui'], 'node backend/test/ui-server.js');

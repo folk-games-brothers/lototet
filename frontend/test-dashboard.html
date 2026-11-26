@@ -96,7 +96,7 @@
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
-  const state = { groups: new Map(), expanded: new Set(), filter: 'all', running: false, source: null, currentSuite: '' };
+  const state = { groups: new Map(), expanded: new Set(), filter: 'all', running: false, source: null, currentSuite: '', runDuration: 0 };
   const SUITE_LABEL = { all: 'Tất cả', server: 'Server', frontend: 'Frontend', audio: 'Audio', concurrency: 'Concurrency', load: 'Load Test' };
 
   function fmtMs(ms) { return Math.round(Number(ms) || 0) + ' ms'; }
@@ -138,7 +138,7 @@
     $('sumTotal').textContent = total;
     $('sumPass').textContent = pass;
     $('sumFail').textContent = fail;
-    $('sumTime').textContent = fmtMs(duration);
+    $('sumTime').textContent = fmtMs(state.runDuration || duration);
     const completed = pass + fail;
     const pct = total ? Math.round(completed / total * 100) : 0;
     $('progressBar').style.width = pct + '%';
@@ -201,7 +201,7 @@
   }
 
   function reset(suite) {
-    state.groups.clear(); state.expanded.clear(); state.running = true; state.currentSuite = suite;
+    state.groups.clear(); state.expanded.clear(); state.running = true; state.currentSuite = suite; state.runDuration = 0;
     $('metrics').classList.add('hidden');
     $('logbox').classList.add('hidden');
     $('logbox').textContent = '';
@@ -268,7 +268,13 @@
       });
       render(); return;
     }
-    if (event.type === 'run:done') { finish(); return; }
+    if (event.type === 'run:done') {
+      state.runDuration = event.durationMs || 0;
+      finish();
+      // SSE tự reconnect khi server đóng stream -> phải đóng rõ ở client.
+      if (state.source) { state.source.close(); state.source = null; }
+      return;
+    }
   }
 
   function start(suite) {
