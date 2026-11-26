@@ -341,9 +341,10 @@ test('startup table, --open flag, Windows launchers and interactive test CLI', (
 
 test('business audit: rounded prize, locked settings bypass, locked-only Kinh and simultaneous over-limit', () => {
   const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
+  const gameEngine = fs.readFileSync(path.join(frontend, '../backend/src/game-engine.js'), 'utf8');
 
   // Prize per winner is a clean multiple of 1.000đ.
-  assert.match(server, /Math\.floor\(pool \/ game\.winners\.length \/ 1000\) \* 1000/);
+  assert.match(gameEngine, /Math\.floor\(pool \/ g\.winners\.length \/ 1000\) \* 1000/);
 
   // Admin cannot bypass hard locks through config:update (works after F5 too).
   assert.match(server, /socket\.on\('config:update', \(cfg\) => \{[\s\S]{0,400}LOCKED_FIELDS/);

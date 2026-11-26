@@ -1,0 +1,353 @@
+[
+  {
+    "id": "MWXKIYSLHFN4",
+    "startedAt": 1795698505893,
+    "endedAt": 1795698508302,
+    "config": {
+      "maxPlayers": 200,
+      "maxTicketsPerPlayer": 3,
+      "betPerTicket": 1000,
+      "maxWinners": 1,
+      "rollSeconds": 1,
+      "autoRollSeconds": 4.5,
+      "minNumber": 1,
+      "maxNumber": 90
+    },
+    "drawn": [
+      2,
+      34,
+      7,
+      12,
+      39,
+      13,
+      53,
+      54,
+      46,
+      18,
+      11,
+      71,
+      9,
+      47,
+      82,
+      33,
+      70,
+      30,
+      44,
+      65,
+      48,
+      21
+    ],
+    "winners": [
+      {
+        "playerId": "load-42",
+        "code": "V125",
+        "name": "Load42",
+        "row": 1,
+        "position": 1,
+        "time": 1795698508278,
+        "acked": false,
+        "ticketRows": [
+          {
+            "index": 1,
+            "cells": [
+              null,
+              {
+                "value": 11,
+                "matched": true
+              },
+              {
+                "value": 21,
+                "matched": true
+              },
+              {
+                "value": 30,
+                "matched": true
+              },
+              null,
+              null,
+              null,
+              {
+                "value": 70,
+                "matched": true
+              },
+              {
+                "value": 82,
+                "matched": true
+              }
+            ],
+            "complete": true,
+            "kinhPosition": 1,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 2,
+            "cells": [
+              {
+                "value": 1,
+                "matched": false
+              },
+              {
+                "value": 13,
+                "matched": true
+              },
+              {
+                "value": 23,
+                "matched": false
+              },
+              null,
+              null,
+              null,
+              null,
+              {
+                "value": 72,
+                "matched": false
+              },
+              {
+                "value": 85,
+                "matched": false
+              }
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 3,
+            "cells": [
+              {
+                "value": 2,
+                "matched": true
+              },
+              null,
+              {
+                "value": 24,
+                "matched": false
+              },
+              null,
+              {
+                "value": 42,
+                "matched": false
+              },
+              null,
+              null,
+              {
+                "value": 73,
+                "matched": false
+              },
+              {
+                "value": 86,
+                "matched": false
+              }
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 4,
+            "cells": [
+              {
+                "value": 3,
+                "matched": false
+              },
+              null,
+              {
+                "value": 25,
+                "matched": false
+              },
+              null,
+              {
+                "value": 44,
+                "matched": true
+              },
+              {
+                "value": 50,
+                "matched": false
+              },
+              null,
+              null,
+              {
+                "value": 87,
+                "matched": false
+              }
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 5,
+            "cells": [
+              {
+                "value": 7,
+                "matched": true
+              },
+              null,
+              {
+                "value": 26,
+                "matched": false
+              },
+              null,
+              {
+                "value": 45,
+                "matched": false
+              },
+              {
+                "value": 52,
+                "matched": false
+              },
+              {
+                "value": 61,
+                "matched": false
+              },
+              null,
+              null
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 6,
+            "cells": [
+              {
+                "value": 8,
+                "matched": false
+              },
+              null,
+              null,
+              {
+                "value": 32,
+                "matched": false
+              },
+              {
+                "value": 47,
+                "matched": true
+              },
+              {
+                "value": 53,
+                "matched": true
+              },
+              {
+                "value": 65,
+                "matched": true
+              },
+              null,
+              null
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 7,
+            "cells": [
+              null,
+              {
+                "value": 14,
+                "matched": false
+              },
+              null,
+              {
+                "value": 34,
+                "matched": true
+              },
+              {
+                "value": 48,
+                "matched": true
+              },
+              {
+                "value": 57,
+                "matched": false
+              },
+              {
+                "value": 67,
+                "matched": false
+              },
+              null,
+              null
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 8,
+            "cells": [
+              null,
+              {
+                "value": 16,
+                "matched": false
+              },
+              null,
+              {
+                "value": 36,
+                "matched": false
+              },
+              null,
+              {
+                "value": 58,
+                "matched": false
+              },
+              {
+                "value": 68,
+                "matched": false
+              },
+              {
+                "value": 76,
+                "matched": false
+              },
+              null
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          },
+          {
+            "index": 9,
+            "cells": [
+              null,
+              {
+                "value": 18,
+                "matched": true
+              },
+              null,
+              {
+                "value": 38,
+                "matched": false
+              },
+              null,
+              null,
+              {
+                "value": 69,
+                "matched": false
+              },
+              {
+                "value": 79,
+                "matched": false
+              },
+              {
+                "value": 90,
+                "matched": false
+              }
+            ],
+            "complete": false,
+            "kinhPosition": null,
+            "waiting": false,
+            "missing": null
+          }
+        ]
+      }
+    ],
+    "players": 50,
+    "issued": 150
+  }
+]

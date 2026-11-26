@@ -28,7 +28,7 @@ const ADMIN_PASSWORD_SALT = process.env.ADMIN_PASSWORD_SALT || 'loto-tet-admin-v
 const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH ||
   'eda684c6fce2ec211dac0118fa995de83dfc91a3579e8e98ecab750c07b5707e';
 const ADMIN_LOGIN_FAILURES = new Map();
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const HISTORY_FILE = path.join(DATA_DIR, 'history.json');
 const STATE_FILE = path.join(DATA_DIR, 'game-state.json');
 const FINANCE_FILE = path.join(DATA_DIR, 'finance.json');
@@ -89,48 +89,12 @@ function validAdminPassword(password) {
 const ROWS = 9;
 const COLS = 9;
 const PER_ROW = 5;   // 5 số / hàng (đục 4 ô)
-function buildGrid(drawn) {
-  const used = new Set(drawn || []);
-  const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-  const offsets = shuffle([...Array(COLS).keys()]);   // xáo trộn vị trí các cột
-
-  for (let c = 0; c < COLS; c++) {
-    const lo = c === 0 ? 1 : c * 10;
-    const hi = c === COLS - 1 ? 90 : c * 10 + 9;
-
-    // Chọn 5 số ngẫu nhiên trong chục của cột, rồi xếp tăng dần
-    const pool = [];
-    for (let n = lo; n <= hi; n++) pool.push(n);
-    shuffle(pool);
-    const nums = pool.slice(0, PER_ROW).sort((a, b) => a - b);
-
-    // 5 hàng nhận số của cột này (mỗi hàng cũng nhận đúng 5 số tổng cộng)
-    const rowSlots = [];
-    for (let j = 0; j < PER_ROW; j++) rowSlots.push((offsets[c] + j) % ROWS);
-    rowSlots.sort((a, b) => a - b);
-
-    nums.forEach((value, i) => {
-      grid[rowSlots[i]][c] = { value, matched: used.has(value) };
-    });
-  }
-
-  return grid.map((cells) => {
-    const unmatched = cells.filter(Boolean).filter((cell) => !cell.matched).length;
-    return {
-      cells,
-      complete: unmatched === 0,
-      awarded: unmatched === 0,   // hàng đã đủ trước khi nhận vé -> không tính giải
-      waitingNotified: false,
-      kinhPosition: null,
-    };
-  });
-}
-
 /* ---------------- Trạng thái game ---------------- */
 // Chữ ký của vé = toàn bộ lưới (giá trị số + ô đục). Dùng để đảm bảo 200 vé KHÔNG trùng nhau.
-function gridSignature(rows) {
-  return rows.map((r) => r.cells.map((c) => (c ? c.value : '_')).join(',')).join('|');
-}
+const gameEngine = require('./game-engine');
+const buildGrid = gameEngine.buildGrid;
+const gridSignature = gameEngine.gridSignature;
+const rowNumbers = gameEngine.rowNumbers;
 
 function freshGame(config) {
   const cfg = Object.assign({
@@ -373,17 +337,8 @@ function appendHistory() {
   });
   writeJSON(HISTORY_FILE, history.slice(0, 50));
 }
-// Tổng giải = tổng tiền cược thực thu = số vé đã bán × mức cược/vé
-function prizePool() {
-  const sold = game.tickets.filter((t) => t.owner && t.locked).length;
-  return sold * (Number(game.config.betPerTicket) || 0);
-}
-function prizePerWinner() {
-  const pool = prizePool();
-  if (!game.winners.length) return pool;
-  // Chia đều và làm tròn xuống bội số 1.000đ cho gọn khi trả thưởng.
-  return Math.max(0, Math.floor(pool / game.winners.length / 1000) * 1000);
-}
+const prizePool = gameEngine.prizePool;
+const prizePerWinner = gameEngine.prizePerWinner;
 function lockedPlayers() {
   const map = new Map();
   game.tickets.filter((t) => t.locked && t.owner).forEach((t) => {
@@ -523,7 +478,7 @@ function tvParticipants() {
     minRemaining: participant.minRemaining === 99 ? 0 : participant.minRemaining,
   }));
 }
-function rowNumbers(row) { return row.cells.filter(Boolean); }
+// rowNumbers đã alias sang game-engine ở trên.
 function countWaiting() {
   let n = 0;
   game.tickets.forEach((t) => {
@@ -672,10 +627,7 @@ function setRulesVisible(visible) {
 }
 
 // Ván được coi là kết thúc khi đủ số người Kinh (hoặc maxWinners = 0 và có >= 1 Kinh).
-function isRoundComplete() {
-  const limit = Number(game.config.maxWinners) || 0;
-  return limit > 0 ? game.winners.length >= limit : game.winners.length > 0;
-}
+const isRoundComplete = gameEngine.isRoundComplete;
 
 // Chốt ván: trả thưởng vào ví + thành tích, ghi lịch sử. Trả false nếu đã chốt trước đó.
 function settleGame() {
