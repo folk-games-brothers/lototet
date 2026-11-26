@@ -377,7 +377,7 @@ function startServer(startPort, attempt = 0) {
     if (url.pathname === '/favicon.ico') { res.writeHead(204); res.end(); return; }
     if (url.pathname === '/api/run') {
       const suite = url.searchParams.get('suite') || 'all';
-      const users = Number(url.searchParams.get('users')) || 50;
+      const users = Math.min(2000, Math.max(1, Number(url.searchParams.get('users')) || 50));
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',

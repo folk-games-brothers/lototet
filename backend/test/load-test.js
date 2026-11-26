@@ -33,8 +33,8 @@ function parseArgs(argv) {
     const value = eq >= 0 ? raw.slice(eq + 1) : argv[++i];
     if (value !== undefined) out[key] = key === 'players' ? Number(value) : value;
   }
-  if (!Number.isInteger(out.players) || out.players < 1 || out.players > 250) {
-    throw new Error('Số người chơi phải là số nguyên từ 1 đến 250.');
+  if (!Number.isInteger(out.players) || out.players < 1 || out.players > 2000) {
+    throw new Error('Số người chơi phải là số nguyên từ 1 đến 2000.');
   }
   return out;
 }
@@ -94,6 +94,10 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   let drawResults = 0;
   let drawErrors = 0;
   let lockErrors = 0;
+  let joinTimeouts = 0;
+  let lockTimeouts = 0;
+  let joinMs = 0;
+  let firstReject = null;
   let drawRollingAt = 0;
 
   console.log(`🚀 LOTO TET LOAD TEST · ${players} người chơi ảo · ${url}`);
@@ -114,63 +118,109 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   admin.emit('host:register');
 
   // Đảm bảo ván sạch trước khi đổi cấu hình (tránh bị khóa do state cũ).
-  const reset = event(admin, 'game:reset', () => true, 10000);
+  const reset = event(admin, 'game:reset', () => true, 30000);
   admin.emit('game:new');
   await reset;
 
   const maxPlayers = Math.max(200, players * 3);
   const betPerTicket = 1000;
   const configured = event(admin, 'host:state', (s) =>
-    s.config && s.config.maxPlayers === maxPlayers && s.config.maxTicketsPerPlayer === 3, 15000);
+    s.config && s.config.maxPlayers === maxPlayers && s.config.maxTicketsPerPlayer === 3, 60000);
   admin.emit('config:update', {
     maxPlayers, maxTicketsPerPlayer: 3, betPerTicket,
     maxWinners: 1, rollSeconds: 1, autoRollSeconds: 4.5,
   });
   await configured;
+  // Đảm bảo kho vé đủ cho số bot: tối thiểu players * 3 vé.
+  const totalTickets = Math.max(200, players * 3);
+  if ((await (await fetch(`${url}/api/state`)).json()).config.maxPlayers < totalTickets) {
+    const resized = event(admin, 'host:state', (s) => s.config && s.config.maxPlayers === totalTickets, 15000);
+    admin.emit('config:update', {
+      maxPlayers: totalTickets, maxTicketsPerPlayer: 3, betPerTicket,
+      maxWinners: 1, rollSeconds: 1, autoRollSeconds: 4.5,
+    });
+    await resized;
+  }
 
   // Nạp tiền cho toàn bộ người chơi ảo.
   for (let i = 1; i <= players; i++) {
     admin.emit('admin:wallet-deposit', { name: `Load${i}`, amount: 10000 });
   }
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  // Barrier: socket.io xử lý tuần tự, nên khi settings:saved trả về thì mọi
+  // lệnh nạp tiền phía trước đã xử lý xong. Không sleep cố định 300ms nữa.
+  const depositsDone = event(admin, 'settings:saved', () => true, 30000);
+  admin.emit('settings:update', { rollSeconds: 1, autoRollSeconds: 4.5 });
+  await depositsDone;
 
   // Mở đồng thời các kết nối người chơi.
-  const clients = await Promise.all(Array.from({ length: players }, () => connect(url)));
-  sockets.push(...clients);
+  const clients = [];
+  const batchSize = 50;
+  for (let offset = 0; offset < players; offset += batchSize) {
+    const batch = await Promise.all(Array.from({ length: Math.min(batchSize, players - offset) }, () => connect(url)));
+    clients.push(...batch);
+    sockets.push(...batch);
+  }
 
   hr('1) Tham gia phòng (đồng thời)');
   const joinStart = Date.now();
   await Promise.all(clients.map((client, i) => new Promise((resolve) => {
-    const timer = setTimeout(() => { rejected++; resolve(); }, 12000);
-    const finish = (ok) => {
-      clearTimeout(timer);
+    let settled = false;
+    const cleanup = () => {
       client.off('ticket:assigned', onAssigned);
       client.off('player:rejected', onRejected);
-      if (ok) assigned++; else rejected++;
+    };
+    const finish = (ok, reason) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      if (ok) assigned++;
+      else { rejected++; if (!firstReject) firstReject = reason || null; }
       resolve();
     };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      joinTimeouts++;
+      cleanup();
+      resolve();
+    }, 30000);
     const onAssigned = () => finish(true);
-    const onRejected = () => finish(false);
+    const onRejected = (payload) => finish(false, payload && payload.message);
     client.once('ticket:assigned', onAssigned);
     client.once('player:rejected', onRejected);
     client.emit('player:join', { playerId: `load-${i + 1}`, name: `Load${i + 1}`, ticketCount: 3 });
   })));
-  row('Thời gian tham gia', `${Date.now() - joinStart}ms`);
-  row('Nhận vé / bị từ chối', `${assigned} / ${rejected}`);
+  joinMs = Date.now() - joinStart;
+  row('Thời gian tham gia', `${joinMs}ms`);
+  row('Nhận vé / bị từ chối / timeout', `${assigned} / ${rejected} / ${joinTimeouts}`);
+  if (firstReject) row('Lý do từ chối đầu tiên', firstReject);
   console.log('__PROGRESS__:' + JSON.stringify({ stage: 'joined', percent: 30 }));
 
   hr('2) Chốt vé (đồng thời)');
   await Promise.all(clients.map((client, i) => new Promise((resolve) => {
     const started = Date.now();
-    const timer = setTimeout(() => { lockErrors++; resolve(); }, 12000);
-    const done = (ok) => {
-      clearTimeout(timer);
+    let settled = false;
+    const cleanup = () => {
       client.off('ticket:locked', onLocked);
       client.off('ticket:error', onError);
+    };
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
       if (ok) { locked++; lockLatency.push(Date.now() - started); }
       else lockErrors++;
       resolve();
     };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      lockTimeouts++;
+      cleanup();
+      resolve();
+    }, 20000);
     const onLocked = () => done(true);
     const onError = () => done(false);
     client.once('ticket:locked', onLocked);
@@ -207,7 +257,7 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   admin.on('game:limit-reached', () => { finishedOk = true; });
 
   for (let i = 0; i < 90 && !finishedOk; i++) {
-    const result = event(admin, 'draw:result', () => true, 10000);
+    const result = event(admin, 'draw:result', () => true, 20000);
     admin.emit('draw:request', {});
     await result;
     // Chờ event game:finished/game:limit-reached được giao trước khi gửi lượt tiếp.
@@ -219,10 +269,11 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
 
   hr('KẾT QUẢ LOAD TEST');
   const successes = assigned + locked + drawResults;
-  const failures = rejected + lockErrors + drawErrors;
+  const failures = rejected + lockErrors + drawErrors + joinTimeouts + lockTimeouts;
   const errorRate = successes + failures ? (failures / (successes + failures)) * 100 : 0;
   row('Tổng request thành công', successes);
   row('Tổng request thất bại', failures);
+  row('Timeout join / lock', `${joinTimeouts} / ${lockTimeouts}`);
   row('Tỷ lệ lỗi', `${errorRate.toFixed(2)}%`);
 
   const lockStats = stats(lockLatency);
@@ -230,7 +281,8 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   row('Chốt vé · trung bình / p95 / p99', `${lockStats.avg}ms / ${lockStats.p95}ms / ${lockStats.p99}ms (n=${lockStats.count})`);
   row('Kết quả xổ · trung bình / p95 / p99', `${drawStats.avg}ms / ${drawStats.p95}ms / ${drawStats.p99}ms (n=${drawStats.count})`);
 
-  // Kiểm tra nhất quán cuối ván.
+  // Kiểm tra nhất quán cuối ván (chờ debounce persist ghi xong).
+  await new Promise((resolve) => setTimeout(resolve, 600));
   const state = await (await fetch(`${url}/api/state`)).json();
   const stateFile = path.join(__dirname, '..', 'data', 'game-state.json');
   let tickets = [];
@@ -244,7 +296,8 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
   const expectedPrize = lockedTickets.length * betPerTicket;
   const prizeOk = state.prize === expectedPrize;
   const consistent = assigned === players && locked === players && drawResults > 0
-    && duplicateCodes === 0 && overOwned === 0 && prizeOk;
+    && duplicateCodes === 0 && overOwned === 0 && prizeOk
+    && joinTimeouts === 0 && lockTimeouts === 0;
 
   row('Vé đã chốt / kỳ vọng', `${lockedTickets.length} / ${assigned * 3}`);
   row('Tổng giải / tiền thu', `${state.prize}đ / ${expectedPrize}đ`);
@@ -256,7 +309,8 @@ function hr(title) { console.log(`\n── ${title} ${'─'.repeat(Math.max(0, 5
       success: successes, failures, errorRate: Number(errorRate.toFixed(2)),
       lockLatency: lockStats, drawLatency: drawStats,
       lockedTickets: lockedTickets.length, prize: state.prize, expectedPrize,
-      duplicateCodes, overOwned, drawResults, consistent,
+      duplicateCodes, overOwned, drawResults,
+      joinTimeouts, lockTimeouts, joinMs, consistent,
     },
   }));
   console.log(consistent

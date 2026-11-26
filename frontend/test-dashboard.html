@@ -91,8 +91,8 @@
         </div>
         <div class="actions">
           <div class="bots" id="botPicker" hidden>
-            <button data-bots="20">20</button><button data-bots="50" class="active">50</button><button data-bots="100">100</button>
-            <input id="botsCustom" type="number" min="1" max="250" value="50" />
+            <button data-bots="20">20</button><button data-bots="50" class="active">50</button><button data-bots="100">100</button><button data-bots="1000">1000</button>
+            <input id="botsCustom" type="number" min="1" max="2000" value="50" />
           </div>
           <button id="btnRunAll">Chạy tất cả</button>
           <button class="primary" id="btnRun"><span class="spinner"></span>▶ CHẠY TEST</button>
@@ -391,7 +391,7 @@
     b.classList.add('active');state.bots=Number(b.dataset.bots);$('botsCustom').value=state.bots;
   }));
   $('botsCustom').addEventListener('change',(e)=>{
-    state.bots=Math.max(1,Math.min(250,Number(e.target.value)||50));e.target.value=state.bots;
+    state.bots=Math.max(1,Math.min(2000,Number(e.target.value)||50));e.target.value=state.bots;
     document.querySelectorAll('[data-bots]').forEach(b=>b.classList.toggle('active',Number(b.dataset.bots)===state.bots));
   });
   document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{

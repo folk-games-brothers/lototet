@@ -38,8 +38,8 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 function readJSON(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return fallback; }
 }
-function writeJSON(file, data) {
-  try { fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8'); }
+function writeJSON(file, data, pretty = true) {
+  try { fs.writeFileSync(file, pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data), 'utf8'); }
   catch (e) { console.error('[Lỗi ghi file]', e.message); }
 }
 function shuffle(arr) {
@@ -251,7 +251,7 @@ function creditWallet(playerId, amount, type, reason, fallbackName) {
     markPaymentFromWallet(playerId, 'paid');
   }
   emitWalletSummary(resolvedId || playerId);
-  emitHostState();
+  scheduleHostState(300);
 }
 function renameFinanceAccount(oldName, newName) {
   const oldKey = financeKey(oldName);
@@ -306,10 +306,35 @@ function assignWaitingPlayers() {
 
 function persistState() {
   game.waitingPlayers = waitingPlayers;
-  writeJSON(STATE_FILE, game);
+  // File state có thể lên vài MB khi chạy 1000 bot: ghi compact để giảm I/O.
+  writeJSON(STATE_FILE, game, false);
+}
+// Ghi state theo kiểu debounce cho đường join đông người, tránh 500 lần writeFileSync.
+let persistStateTimer = null;
+function persistStateSoon() {
+  if (persistStateTimer) return;
+  persistStateTimer = setTimeout(() => {
+    persistStateTimer = null;
+    persistState();
+  }, 300);
+}
+// Đọc state qua API là điểm đồng bộ: ghi nốt thay đổi đang chờ debounce.
+function flushPersistState() {
+  if (!persistStateTimer) return;
+  clearTimeout(persistStateTimer);
+  persistStateTimer = null;
+  persistState();
 }
 // Throttle phát host:state trong lúc tự xổ để giảm tải socket/UI.
 let lastHostStateAt = 0;
+let scheduledHostState = null;
+function scheduleHostState(delay = 400) {
+  if (scheduledHostState) return;
+  scheduledHostState = setTimeout(() => {
+    scheduledHostState = null;
+    emitHostState();
+  }, delay);
+}
 function emitHostStateThrottled(minGapMs = 450) {
   const now = Date.now();
   if (now - lastHostStateAt < minGapMs) return;
@@ -601,7 +626,9 @@ function emitHostState() {
     participants: tvParticipants(),
     leaderboard: leaderboardVisible ? state.leaderboard : [],
   });
-  io.emit('tv:state', publicState);
+  // TV nhận full state; người chơi chỉ cần config (giá vé) để tránh nhân payload theo số client.
+  io.to('tvs').emit('tv:state', publicState);
+  io.except('tvs').emit('tv:state', { config: game.config });
 }
 
 // Bật/tắt bảng luật trên TV. Khi tắt do Admin bắt đầu quay số, TV nhận event ngay.
@@ -993,6 +1020,7 @@ function nextAutoDraw() {
 io.on('connection', (socket) => {
   // realtime.js quản lý client + sync:full khi mới kết nối.
   try { require('./realtime').addClient(socket); } catch (e) {}
+  socket.emit('tv:state', { config: game.config });
   socket.use(([event], next) => {
     const privileged = new Set([
       'host:register', 'settings:update', 'config:update', 'game:new', 'game:finish',
@@ -1037,6 +1065,7 @@ io.on('connection', (socket) => {
   });
   socket.on('host:register', () => { emitHostState(); sendQR(socket.id); });
   socket.on('tv:register', () => {
+    socket.join('tvs');
     socket.emit('tv:state', {
       config: game.config, drawn: game.drawn, winners: game.winners,
       topWinners: game.topWinners || [], playerCount: lockedPlayers().length,
@@ -1099,7 +1128,7 @@ io.on('connection', (socket) => {
       game.config.betPerTicket = v;
     }
     if (s.maxPlayers !== undefined) {
-      game.config.maxPlayers = Math.max(1, Math.min(1000, Number(s.maxPlayers) || 200));
+      game.config.maxPlayers = Math.max(1, Math.min(5000, Number(s.maxPlayers) || 200));
     }
     if (s.maxTicketsPerPlayer !== undefined) {
       game.config.maxTicketsPerPlayer = Math.max(1, Math.min(10, Number(s.maxTicketsPerPlayer) || 3));
@@ -1133,7 +1162,7 @@ io.on('connection', (socket) => {
       });
       return;
     }
-    const maxPlayers = Math.max(1, Math.min(1000, Number(cfg.maxPlayers) || 200));
+    const maxPlayers = Math.max(1, Math.min(5000, Number(cfg.maxPlayers) || 200));
     const rollSeconds = Math.max(1, Math.min(15, Number(cfg.rollSeconds) || game.config.rollSeconds || 4.5));
     let autoRollSeconds = Math.max(0.3, Math.min(30, Number(cfg.autoRollSeconds) || game.config.autoRollSeconds || 9));
     if (autoRollSeconds < rollSeconds + 3.5) autoRollSeconds = rollSeconds + 3.5;
@@ -1407,9 +1436,10 @@ stateMod.syncTicketMap();
       if (name) t.name = name;
     });
     joiningPlayers.delete(playerId);
-    persistState();
+    persistStateSoon();
     socket.emit('ticket:assigned', multiPayload(playerId));
-    emitHostState();
+    // Gộp broadcast khi 500-1000 người join đồng thời.
+    scheduleHostState(500);
   });
 
   // Đổi sang một vé random khác (chưa ai giữ)
@@ -1443,10 +1473,10 @@ stateMod.syncTicketMap();
     stateMod.syncTicketMap();
     giveTicket(next, playerId, name, socket.id);
     stateMod.syncTicketMap();
-    persistState();
+    persistStateSoon();
     socket.emit('ticket:assigned', multiPayload(playerId, next.code));
     socket.emit('ticket:changed', { code: next.code });
-    emitHostState();
+    scheduleHostState(300);
   });
 
   // Chốt vé -> xuất hiện trong danh sách người chơi trên màn hình chính
@@ -1473,10 +1503,10 @@ stateMod.syncTicketMap();
       return;
     }
     owned.forEach((t) => { t.locked = true; });
-    persistState();
+    persistStateSoon();
     socket.emit('ticket:locked', { code: owned[0].code, name: owned[0].name, codes: owned.map((t) => t.code) });
     io.to('admins').emit('host:players', { players: adminPlayers() });
-    emitHostState();
+    scheduleHostState(300);
   });
 
   socket.on('player:ack', (payload) => {
@@ -1782,6 +1812,7 @@ stateMod.syncTicketMap();
 /* ---------------- Static ---------------- */
 app.use(require('./static-handler')(path.join(__dirname, '..', '..', 'frontend')));
 app.get('/api/state', (req, res) => {
+  flushPersistState();
   const players = lockedPlayers().map(({ playerId, paymentStatus, debt, bet, balance, winnings, ...player }) => player);
   res.json({
     serverTime: Date.now(), joinUrl: buildJoinUrl(),

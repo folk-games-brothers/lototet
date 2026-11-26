@@ -15,9 +15,15 @@ function getTicket(code) { return ticketMap.get(code); }
 function hasTicket(code) { return ticketMap.has(code); }
 
 // Set số đã quay để kiểm tra has O(1).
+let drawnCache = { source: null, length: -1, set: new Set() };
 function drawnSet() {
   const game = server().state.game;
-  return new Set(game && Array.isArray(game.drawn) ? game.drawn : []);
+  const source = game && Array.isArray(game.drawn) ? game.drawn : [];
+  // Cache theo mảng + độ dài: mỗi lượt xổ chỉ tạo Set một lần, không tạo lại
+  // cho từng ô của 3 vé × 500-1000 người chơi.
+  if (drawnCache.source === source && drawnCache.length === source.length) return drawnCache.set;
+  drawnCache = { source, length: source.length, set: new Set(source) };
+  return drawnCache.set;
 }
 function hasDrawn(number) { return drawnSet().has(Number(number)); }
 
