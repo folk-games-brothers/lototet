@@ -115,6 +115,13 @@ async function runTestSuite(res, suite, startedAt) {
   let currentFile = files[0] || '';
   let currentTestName = '';
   const diagnostics = new Map();
+  const fileOf = (data) => path.basename(String(data.file || data.name || ''));
+  // Bỏ qua event wrapper cấp file/suite (không phải một test case).
+  const isWrapper = (data) => {
+    if (!data.file && !data.name) return false; // diagnostic tổng kết không có file/name
+    const type = data.details && data.details.type;
+    return (!!type && type !== 'test') || path.basename(String(data.name || '')) === fileOf(data);
+  };
 
   const progress = (extra = {}) => {
     const percent = Math.min(99, Math.round((completed / Math.max(total, 1)) * 100));
@@ -137,30 +144,37 @@ async function runTestSuite(res, suite, startedAt) {
     const tests = run({ files: fileList });
     for await (const event of tests) {
       const data = event.data || {};
-      if (event.type === 'test:enqueue') {
+      const file = fileOf(data) || currentFile;
+      if (isWrapper(data)) {
         if (/\.test\.js$/.test(String(data.name))) currentFile = path.basename(String(data.name));
-        else { total++; progress(); }
+        continue;
+      }
+      if (event.type === 'test:enqueue') {
+        currentFile = file;
+        total++;
+        progress();
       } else if (event.type === 'test:start') {
+        currentFile = file;
         currentTestName = String(data.name || '');
         diagnostics.set(currentTestName, []);
-        send(res, { type: 'test:start', file: currentFile, name: currentTestName,
-          category: categoryFor(currentFile, currentTestName) });
+        send(res, { type: 'test:start', file, name: currentTestName,
+          category: categoryFor(file, currentTestName) });
         progress();
       } else if (event.type === 'test:diagnostic') {
         const message = String(data.message || '');
         const isSummary = /^(tests|suites|pass|fail|cancelled|skipped|todo|duration_ms)\b/.test(message);
         const name = isSummary ? null : [...diagnostics.keys()].reverse()[0] || null;
-        if (name) diagnostics.get(name).push(message);
-        send(res, { type: 'test:diagnostic', file: currentFile, name, message });
+        if (name && diagnostics.has(name)) diagnostics.get(name).push(message);
+        send(res, { type: 'test:diagnostic', file, name, message });
       } else if (event.type === 'test:pass' || event.type === 'test:fail') {
         completed++;
         const isPass = event.type === 'test:pass';
         if (isPass) passed++; else failed++;
         const error = data.error || {};
         const payload = {
-          type: event.type, file: currentFile, name: data.name,
-          category: categoryFor(currentFile, data.name),
-          durationMs: data.duration_ms || 0,
+          type: event.type, file, name: data.name,
+          category: categoryFor(file, data.name),
+          durationMs: Math.round(Number(data.details && data.details.duration_ms) || 0),
           diagnostics: diagnostics.get(data.name) || [],
         };
         if (!isPass) {
