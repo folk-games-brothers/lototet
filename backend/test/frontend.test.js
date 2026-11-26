@@ -282,7 +282,7 @@ test('dashboard v2: suite catalog, realtime percent stream, 2-column UI and fail
 });
 
 test('startup table, --open flag, Windows launchers and interactive test CLI', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
   const cli = fs.readFileSync(path.join(frontend, '..', 'backend', 'test', 'cli.js'), 'utf8');
   const backendCmd = fs.readFileSync(path.join(frontend, '..', 'backend', 'Chay-May-Chu.cmd'), 'utf8');
   const rootCmd = fs.readFileSync(path.join(frontend, '..', 'Chay-May-Chu.cmd'), 'utf8');
@@ -340,7 +340,7 @@ test('startup table, --open flag, Windows launchers and interactive test CLI', (
 });
 
 test('business audit: rounded prize, locked settings bypass, locked-only Kinh and simultaneous over-limit', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
 
   // Prize per winner is a clean multiple of 1.000đ.
   assert.match(server, /Math\.floor\(pool \/ game\.winners\.length \/ 1000\) \* 1000/);
@@ -379,7 +379,7 @@ test('business audit: rounded prize, locked settings bypass, locked-only Kinh an
 });
 
 test('TV rules overlay: fixed four-section text, Admin sync and auto-close on draw', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
   const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
   const tvHtml = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
@@ -579,7 +579,7 @@ test('TV sound effects: Web Audio engine, four stages, stage hooks, autoplay unl
 });
 
 test('round settings: two ticket fields, real defaults, auto-save, in-round locks, timing and bot cadence', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
   const html = fs.readFileSync(path.join(frontend, 'index.html'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
   const css = fs.readFileSync(path.join(frontend, 'css', 'style.css'), 'utf8');
@@ -623,7 +623,7 @@ test('round settings: two ticket fields, real defaults, auto-save, in-round lock
 });
 
 test('Kinh progress keeps auto draw running; full limit settles, pays and opens TV honour board', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
   const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
   const tvHtml = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
@@ -661,7 +661,7 @@ test('Kinh progress keeps auto draw running; full limit settles, pays and opens 
 });
 
 test('winnings reward is separate from totalWon; leaderboard filters by totalWon; admin has reset-achievements and wipe-all-data', () => {
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
   const host = fs.readFileSync(path.join(frontend, 'js', 'host.js'), 'utf8');
   const tv = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
   const html = fs.readFileSync(path.join(frontend, 'index.html'), 'utf8');
@@ -756,7 +756,7 @@ test('TV hides empty winner banner, uses BINGO, removes footer stats, and shows 
 test('TV cage uses real Matter.js rigid-body physics, not random number arrays', () => {
   const html = fs.readFileSync(path.join(frontend, 'tv.html'), 'utf8');
   const script = fs.readFileSync(path.join(frontend, 'js', 'tv.js'), 'utf8');
-  const server = fs.readFileSync(path.join(frontend, '../backend/server.js'), 'utf8');
+  const server = fs.readFileSync(path.join(frontend, '../backend/src/server.js'), 'utf8');
 
   // Physics engine actually loaded and a canvas is provided to render bodies.
   assert.match(html, /matter\.min\.js/);
