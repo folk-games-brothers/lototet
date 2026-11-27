@@ -1877,6 +1877,10 @@ if (process.env.LOTO_SERVER_AUTOSTART === '1' || require.main === module) {
   console.log(`  ${C.bold}${C.green}3. Người chơi (Play)${C.reset}`);
   console.log(`     ${C.cyan}Local:${C.reset} ${local}/play.html`);
   console.log(`     ${C.cyan}LAN  :${C.reset} ${lanBase}/play.html`);
+  console.log(`  ${C.bold}${C.green}4. Test Dashboard (UI chạy test)${C.reset}`);
+  console.log(`     ${C.cyan}Local:${C.reset} http://localhost:3001/`);
+  console.log(`     ${C.cyan}LAN  :${C.reset} http://${lan}:3001/`);
+  console.log(`     ${C.dim}Bật bằng lệnh: npm run test:ui${C.reset}`);
   console.log(`  ${C.dim}Quét QR trên TV bằng điện thoại cùng mạng LAN.${C.reset}`);
   console.log(line);
 

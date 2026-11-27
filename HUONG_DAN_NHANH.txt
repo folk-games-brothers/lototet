@@ -18,6 +18,7 @@
             1. Quản trò (Admin):  http://localhost:3000/
             2. Màn hình TV:       http://localhost:3000/tv.html
             3. Người chơi:        http://localhost:3000/play.html
+            4. Test Dashboard:    http://localhost:3001/  (chạy riêng bằng npm run test:ui)
           Mỗi dòng có thêm link LAN tương ứng http://<IP-LAN>:3000/...
 
    npm run start:open
@@ -30,6 +31,10 @@
    npm test
        -> Chạy toàn bộ file *.test.js trong backend/test/
           (server, frontend, audio, concurrency, ...).
+
+   npm run test:ui
+       -> Mở Test Dashboard trên trình duyệt: http://localhost:3001/
+          Bấm "▶ CHẠY TEST" để chạy từng nhóm; chọn 20/50/100/1000 bot cho Load Test.
 
    npm run test:menu
        -> Mở menu test tương tác trên terminal:

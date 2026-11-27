@@ -19,6 +19,9 @@ if not exist "node_modules" (
 )
 
 echo.
+echo  Test Dashboard (UI chay test): http://localhost:3001/
+echo    Mo bang lenh: npm run test:ui  (o thu muc goc, terminal rieng)
+echo.
 set /p "OPEN_PAGES=Bạn có muốn tự động mở sẵn 3 trang (Admin, TV, Người chơi) trên trình duyệt không? (Y/N): "
 if /I "%OPEN_PAGES%"=="Y" (
   echo  🚀 Khởi động server và mở sẵn 3 trang...

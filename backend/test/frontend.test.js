@@ -300,6 +300,9 @@ test('startup table, --open flag, Windows launchers and interactive test CLI', (
   assert.match(server, /1\. Quản trò \(Admin\)/);
   assert.match(server, /2\. Màn hình TV/);
   assert.match(server, /3\. Người chơi \(Play\)/);
+  assert.match(server, /4\. Test Dashboard \(UI chạy test\)/);
+  assert.match(server, /http:\/\/localhost:3001\//);
+  assert.match(server, /npm run test:ui/);
   assert.match(server, /\/tv\.html/);
   assert.match(server, /\/play\.html/);
   assert.match(server, /process\.argv\.includes\('--open'\)/);
@@ -311,6 +314,8 @@ test('startup table, --open flag, Windows launchers and interactive test CLI', (
   assert.match(backendCmd, /if not exist "node_modules"/);
   assert.match(backendCmd, /call npm install/);
   assert.match(backendCmd, /tự động mở sẵn 3 trang/);
+  assert.match(backendCmd, /http:\/\/localhost:3001\//);
+  assert.match(backendCmd, /npm run test:ui/);
   assert.match(backendCmd, /npm run start:open/);
   assert.match(rootCmd, /backend\\Chay-May-Chu\.cmd/);
 
@@ -335,6 +340,8 @@ test('startup table, --open flag, Windows launchers and interactive test CLI', (
   assert.match(backendPkg.scripts['start:open'], /--open/);
   assert.match(guide, /npm start/);
   assert.match(guide, /npm run start:open/);
+  assert.match(guide, /npm run test:ui/);
+  assert.match(guide, /http:\/\/localhost:3001\//);
   assert.match(guide, /npm run test:menu/);
   assert.match(guide, /Chay-May-Chu\.cmd/);
 });
