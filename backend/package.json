@@ -4,11 +4,19 @@
   "description": "Trang choi xo so lo to ngay Tet - quet QR bang dien thoai, luu cac luot xo, phan ve random, tu chon so, bao kinh, phan hoi man hinh chinh, chia tien thuong deu",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:open": "node server.js --open",
+    "test": "node --test test/*.test.js",
+    "test:menu": "node test/cli.js",
+    "test:ui": "node test/ui-server.js",
+    "load-test": "node test/load-test.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "qrcode": "^1.5.4",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
   }
 }

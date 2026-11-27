@@ -9,6 +9,10 @@ const socket = io();
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
 const pad = (n) => String(n).padStart(2, '0');
+function showTicketPrice(value) {
+  if (value === undefined || value === null || !Number.isFinite(Number(value))) return;
+  $('playerTicketPrice').textContent = fmt(value);
+}
 
 let playerId = sessionStorage.getItem('loto_player_id');
 if (!playerId) {
@@ -16,46 +20,52 @@ if (!playerId) {
   sessionStorage.setItem('loto_player_id', playerId);
 }
 let playerName = localStorage.getItem('loto_player_name') || '';
-if (playerName) $('nameInput').value = playerName;
+let hasJoined = false;
 
 const isPreview = new URLSearchParams(location.search).has('preview');
-if (isPreview) $('previewBadge').classList.remove('hidden');
+if (!playerName && !isPreview) {
+  $('joinNameModal').classList.remove('hidden');
+  document.querySelector('.player-app').classList.add('hidden');
+}
+if (isPreview) {
+  $('previewBadge').classList.remove('hidden');
+  $('ticketSelection').classList.remove('hidden');
+}
 
 /* ---------------- Ví tiền trên client ---------------- */
-const CHARGE_KEY = 'loto_bet_charged';
 let wallet;
 try { wallet = JSON.parse(localStorage.getItem('loto_wallet')) || {}; } catch (e) { wallet = {}; }
 wallet = {
   deposited: Number(wallet.deposited) || 0,
-  bet: Number(wallet.bet) || 0,
   won: Number(wallet.won) || 0,
+  debt: Number(wallet.debt) || 0,
 };
 function saveWallet() { localStorage.setItem('loto_wallet', JSON.stringify(wallet)); }
 function renderWallet() {
   $('walletDeposited').textContent = fmt(wallet.deposited);
-  $('walletBet').textContent = fmt(wallet.bet);
   $('walletWon').textContent = fmt(wallet.won);
-  const balance = wallet.deposited - wallet.bet + wallet.won;
-  $('walletBalance').textContent = fmt(balance);
-  $('walletBalance').style.color = balance < 0 ? '#ff9a9a' : 'var(--gold)';
+  $('walletDebt').textContent = fmt(wallet.debt);
+}
+function applyWalletSummary(summary) {
+  if (!summary) return;
+  wallet.deposited = Number(summary.deposited) || 0;
+  wallet.won = Number(summary.winnings) || 0;
+  wallet.debt = Number(summary.debt) || 0;
+  saveWallet();
+  renderWallet();
 }
 renderWallet();
 
-$('btnTopup').addEventListener('click', () => {
-  const amount = Math.max(0, Number($('topupInput').value) || 0);
-  if (!amount) return;
-  wallet.deposited += amount;
-  saveWallet(); renderWallet();
-  $('topupInput').value = '';
-  setStatus(`Đã nạp ${fmt(amount)} vào ví.`, true);
-});
-
 function joinGame() {
+  if (!isPreview && !playerName) return;
+  const want = Math.max(1, Math.min(4, Number($('ticketCount').value || 1)));
+  if (hasJoined && want <= myTickets.length) return;
+  hasJoined = true;
   socket.emit('player:join', {
     playerId,
     name: isPreview ? 'XEM TRƯỚC' : playerName,
     preview: isPreview,
-    ticketCount: Number($('ticketCount').value || 1),
+    ticketCount: want,
   });
 }
 
@@ -63,6 +73,9 @@ let myTickets = [];
 let activeCode = '';
 let myWinInfo = null;
 let acked = false;
+let wasWaiting = false;
+let welcomedBack = false;
+let pendingAnimatedNumber = null;
 
 function activeTicket() {
   return myTickets.find((t) => t.code === activeCode) || myTickets[0] || null;
@@ -72,24 +85,81 @@ function currentRows() {
   return (t && t.rows) || [];
 }
 
+/* ---------------- Popup thông báo ---------------- */
+let toastTimer = null;
+function showToast(message, kind = 'info') {
+  if (!message) return;
+  const el = $('toast');
+  el.textContent = message;
+  el.className = 'toast toast-' + kind;
+  void el.offsetWidth; // reset animation
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
 /* ---------------- Kết nối ---------------- */
 function setStatus(text, online) {
   $('statusText').textContent = text;
   $('dot').className = 'dot ' + (online ? 'online' : 'offline');
 }
 socket.on('connect', () => {
+  hasJoined = false;
   setStatus('Đã kết nối', true);
-  joinGame();
+  if (isPreview || playerName) {
+    // Sau khi refresh, nếu chưa có vé thì vẫn phải hiện lại nút "Nhận vé"
+    if (!isPreview && playerName && !myTickets.length) {
+      $('ticketSelection').classList.remove('hidden');
+    }
+    joinGame();
+  } else setStatus('Nhập tên và số vé trước khi tham gia.', true);
 });
 socket.on('disconnect', () => setStatus('Mất kết nối – đang thử lại…', false));
 socket.on('connect_error', () => setStatus('Không kết nối được máy chủ', false));
-socket.on('player:rejected', ({ message }) => {
-  setStatus(message, false);
-  $('rowsGrid').innerHTML = `<div class="empty" style="color:#8a5a2b">${message}</div>`;
+socket.on('player:waiting', ({ message, config } = {}) => {
+  wasWaiting = true;
+  showTicketPrice(config?.betPerTicket);
+  $('ticketSelection').classList.add('hidden');
+  setStatus(message || 'Đang chờ lượt tiếp theo…', true);
+  showToast(message || 'Bạn đang ở hàng chờ. Vui lòng đợi ván tiếp theo.', 'info');
+  $('rowsGrid').innerHTML = `<div class="empty" style="color:#8a5a2b">${message || 'Bạn đang ở hàng chờ. Vui lòng đợi ván tiếp theo.'}</div>`;
 });
+socket.on('player:returning', () => { welcomedBack = true; });
+socket.on('player:kicked', ({ message }) => {
+  myTickets = [];
+  activeCode = '';
+  $('ticketTabs').classList.add('hidden');
+  $('rowsGrid').innerHTML = '';
+  setStatus(message || 'Bạn đã được quản trò mời rời khỏi ván.', false);
+  showToast(message || 'Bạn đã được quản trò mời rời khỏi ván.', 'error');
+});
+
+socket.on('player:rejected', ({ message, config } = {}) => {
+  hasJoined = false;
+  showTicketPrice(config?.betPerTicket);
+  setStatus('Chưa có vé. Nạp tiền rồi bấm “Nhận vé”.', true);
+  showToast(message, 'error');
+  $('ticketName').textContent = '👤 ' + (playerName || 'Người chơi');
+  $('rowsGrid').innerHTML = '<div class="empty" style="color:#8a5a2b">Chưa có vé.</div>';
+  // Bị từ chối (thiếu tiền / hết vé) nhưng chưa có vé: giữ nút "Nhận vé" để thử lại
+  if (!isPreview && !wasWaiting && myTickets.length < 4) {
+    $('ticketSelection').classList.remove('hidden');
+  }
+});
+socket.on('draw:result', ({ number }) => {
+  pendingAnimatedNumber = Number(number);
+});
+socket.on('tv:state', (state) => showTicketPrice(state.config?.betPerTicket));
+socket.on('draw:error', ({ message }) => {
+  setStatus(message || 'Không thể xổ số.', false);
+  showToast(message || 'Không thể xổ số.', 'error');
+});
+socket.on('game:reset', ({ config } = {}) => showTicketPrice(config?.betPerTicket));
 
 /* ---------------- Nhận vé ---------------- */
 function applyTicketData(data) {
+  showTicketPrice(data.config?.betPerTicket);
+  applyWalletSummary(data.wallet);
   if (Array.isArray(data.tickets) && data.tickets.length) {
     myTickets = data.tickets;
   } else {
@@ -104,7 +174,8 @@ function applyTicketData(data) {
   } else if (!myTickets.some((t) => t.code === activeCode)) {
     activeCode = myTickets[0] ? myTickets[0].code : '';
   }
-  if (data.name && !isPreview) { playerName = data.name; $('nameInput').value = playerName; }
+  if (data.name && !isPreview) playerName = data.name;
+  $('ticketSelection').classList.add('hidden');
   renderTicketTabs();
   applyLockState();
   renderRows();
@@ -113,20 +184,22 @@ function applyTicketData(data) {
 }
 
 socket.on('ticket:assigned', (data) => {
+  const returning = wasWaiting || welcomedBack;
+  wasWaiting = false;
   myWinInfo = null;
   acked = false;
   applyTicketData(data);
-  // Trừ tiền cược đúng 1 lần cho mỗi ván (vé xem trước không trừ tiền)
-  if (!isPreview && !sessionStorage.getItem(CHARGE_KEY)) {
-    const rate = Number(data.config && data.config.betPerTicket) || 0;
-    wallet.bet += myTickets.length * rate;
-    sessionStorage.setItem(CHARGE_KEY, '1');
-    saveWallet();
-  }
   renderWallet();
-  $('ticketCount').disabled = !isPreview;
+  $('ticketCount').disabled = !isPreview && myTickets.length >= 4;
   const n = myTickets.length;
-  setStatus(`Đã có ${n} vé (${currentRows().length} hàng/vé). Chờ xổ số!`, true);
+  setStatus(returning
+    ? 'Chào mừng bạn quay lại! Vé cũ đã được khôi phục, tiếp tục dò số.'
+    : `Đã có ${n} vé (${currentRows().length} hàng/vé). Chờ xổ số!`, true);
+  if (!returning && !isPreview) showToast(`Đã nhận ${n} vé. Chờ xổ số!`, 'success');
+  if (!isPreview && myTickets.length < 4) {
+    $('ticketSelection').classList.remove('hidden');
+  }
+  welcomedBack = false;
 });
 
 socket.on('ticket:update', (data) => {
@@ -146,8 +219,29 @@ socket.on('ticket:update', (data) => {
   }
 });
 
+socket.on('wallet:adjust', ({ amount, reason, addDebt }) => {
+  const delta = Number(amount) || 0;
+  wallet.deposited += delta;
+  if (addDebt && delta > 0) wallet.debt += delta;
+  saveWallet(); renderWallet();
+  setStatus(`Admin điều chỉnh ví: ${fmt(delta)} (${reason || 'điều chỉnh'})`, true);
+});
+socket.on('wallet:summary', applyWalletSummary);
+socket.on('wallet:debt', ({ debt }) => {
+  wallet.debt = Math.max(0, Number(debt) || 0);
+  saveWallet();
+  renderWallet();
+});
+socket.on('wallet:balance', ({ balance }) => {
+  wallet.deposited = Number(balance) || 0;
+  saveWallet();
+  renderWallet();
+});
+
 socket.on('game:reset', () => {
-  sessionStorage.removeItem(CHARGE_KEY);
+  hasJoined = false;
+  localStorage.removeItem('loto_ticket_codes');
+  localStorage.removeItem('loto_ticket_game_id');
   myTickets = []; activeCode = ''; myWinInfo = null; acked = false;
   $('winOverlay').classList.remove('show');
   hideWaitingBanner();
@@ -158,6 +252,7 @@ socket.on('game:reset', () => {
   $('progressText').textContent = '0 / 0 số đã trúng';
   $('progressBar').style.width = '0%';
   $('ticketCount').disabled = false;
+  $('ticketSelection').classList.remove('hidden');
   applyLockState();
   setStatus('Ván mới – đang nhận vé…', true);
   joinGame();
@@ -200,21 +295,33 @@ function applyLockState() {
 }
 socket.on('ticket:changed', ({ code }) => {
   setStatus('Đã đổi vé mới. Hãy chốt vé nếu ưng ý!', true);
+  showToast('Đã đổi vé mới. Hãy chốt vé nếu ưng ý!', 'info');
 });
 socket.on('ticket:locked', ({ codes }) => {
   myTickets.forEach((t) => { t.locked = true; });
   applyLockState();
   renderTicketTabs();
   setStatus('Đã chốt vé! Tên bạn hiện trên màn hình chính.', true);
+  showToast('Đã chốt vé! Tên bạn hiện trên màn hình chính.', 'success');
 });
-socket.on('ticket:error', ({ message }) => setStatus(message, false));
+socket.on('ticket:error', ({ message }) => {
+  setStatus(message, false);
+  showToast(message, 'error');
+});
 
 $('btnChange').addEventListener('click', () => {
   const t = activeTicket();
-  if (!t) return;
+  if (!t) {
+    showToast('Bạn chưa có vé để đổi!', 'error');
+    return;
+  }
   socket.emit('ticket:change', { playerId, code: t.code });
 });
 $('btnLock').addEventListener('click', () => {
+  if (!myTickets.length) {
+    showToast('Bạn chưa có vé để chốt!', 'error');
+    return;
+  }
   socket.emit('ticket:lock', { playerId });
 });
 
@@ -238,10 +345,6 @@ function hideWaitingBanner() { $('waitingBanner').classList.add('hidden'); }
 /* ---------------- Báo KINH ---------------- */
 socket.on('kinh:notify', (info) => {
   myWinInfo = info; acked = false;
-  if (!isPreview) {
-    wallet.won += Number(info.prizePerWinner) || 0;
-    saveWallet(); renderWallet();
-  }
   if (info.winner && info.winner.code && myTickets.some((t) => t.code === info.winner.code)) {
     activeCode = info.winner.code;
     renderTicketTabs();
@@ -295,19 +398,18 @@ function renderRows() {
   const box = $('rowsGrid');
   const rows = currentRows();
   const t = activeTicket();
+  $('ticketName').textContent = '👤 ' + (playerName || 'Người chơi');
+  $('lotoSerial').textContent = t ? t.code : '';
   if (!rows.length) {
     box.innerHTML = '<div class="empty" style="color:#8a5a2b">Chưa có vé.</div>';
     return;
   }
-  $('ticketName').textContent = '👤 ' + (playerName || 'Người chơi');
-  $('lotoSerial').textContent = t ? t.code : '';
-  $('lotoRound').textContent = rows.length;
   box.innerHTML = rows.map((r) => {
     let badge = '';
     if (r.complete) badge = `<span class="row-badge kinh">KINH ${r.kinhPosition ? '# ' + r.kinhPosition : ''} 🥇</span>`;
     else if (r.waiting) badge = `<span class="row-badge doi">ĐỢI SỐ ${pad(r.missing)} ⏳</span>`;
     const cells = (r.cells || []).map((c) => c
-      ? `<div class="loto-cell ${c.matched ? 'matched' : ''}">${pad(c.value)}</div>`
+      ? `<div class="loto-cell ${c.matched ? 'matched' : ''} ${c.matched && c.value === pendingAnimatedNumber ? 'drop-in' : ''}">${pad(c.value)}</div>`
       : '<div class="loto-cell blank"></div>').join('');
     return `<div class="loto-row ${r.complete ? 'row-kinh' : ''}">
       <div class="row-label">Hàng ${r.index}</div>
@@ -319,18 +421,33 @@ function renderRows() {
   const total = totalCount(rows) || 1;
   $('progressText').textContent = `${matched} / ${total} số đã trúng`;
   $('progressBar').style.width = (matched / total * 100) + '%';
+  pendingAnimatedNumber = null;
 }
 
-/* ---------------- Đổi tên ---------------- */
+/* ---------------- Nhập tên lần đầu ---------------- */
 function saveName() {
-  const name = $('nameInput').value.trim() || 'Người chơi';
+  const name = $('firstNameInput').value.trim();
+  if (!name) {
+    setStatus('Vui lòng nhập tên trước khi tham gia.', false);
+    $('firstNameInput').focus();
+    return;
+  }
   playerName = name;
+  $('joinNameModal').classList.add('hidden');
+  document.querySelector('.player-app').classList.remove('hidden');
   localStorage.setItem('loto_player_name', name);
   socket.emit('player:rename', { playerId, name });
   $('ticketName').textContent = '👤 ' + name;
+  if (!myTickets.length && !isPreview) {
+    $('ticketSelection').classList.remove('hidden');
+    setStatus('Tên đã lưu. Chọn số vé rồi bấm “Nhận vé”.', true);
+  }
 }
-$('btnSaveName').addEventListener('click', saveName);
-$('nameInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveName(); });
+$('btnJoin').addEventListener('click', () => joinGame());
+$('joinNameForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  saveName();
+});
 
 // Trong khung xem trước: đổi số vé muốn mua -> tạo lại bộ vé xem trước
 $('ticketCount').addEventListener('change', () => {

@@ -38,54 +38,58 @@
 ## Planned Enhancements (User Requested)
 
 ### Player UX
-- [ ] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé
-- [ ] Tránh tên người chơi trùng bằng tự đặt tên theo số người hiện tại
-- [ ] Khi đổi máy chơi, chỉ cần nhập đúng tên; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
-- [ ] Khôi phục vé theo tên + mã vé, có kiểm tra trùng tên khi tham gia
-- [ ] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới (FIFO)
+- [x] Khi người chơi vào, hiện popup nhập tên trước, sau đó vào hệ thống vé để chọn số lượng vé
+- [x] Tránh tên người chơi trùng bằng tự đặt tên theo số người hiện tại
+- [x] Khi đổi máy chơi, chỉ cần nhập đúng tên; nếu vào lại thì hiển thị 'Chào mừng bạn quay lại' và tiếp tục dò số
+- [x] Khôi phục vé theo tên đã đăng ký, không yêu cầu người chơi nhớ mã vé; tự xử lý tên trùng
+- [x] Hiệu ứng khi một số xuất hiện: số nhảy/rớt xuống ô phía dưới (FIFO)
 
 ### TV / Host UX
-- [ ] Chuyển mã QR sang màn hình TV (góc phải) để người chơi quét
-- [ ] Panel bên trái TV hiển thị người tham gia và tiến độ (còn thiếu bao nhiêu hàng ngang/dọc)
-- [ ] Top trên TV hiển thị người gần KINH; top tiền thắng ẩn cho đến khi admin bấm show
-- [ ] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt
-- [ ] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...)
-- [ ] Kết thúc trận đấu: hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng
+- [x] Chuyển mã QR sang màn hình TV (góc phải) để người chơi quét
+- [x] Panel TV hiển thị người tham gia: chưa chốt có donut loading, đã chốt có check xanh; hiện tiến độ vé
+- [x] Trên TV dùng chữ BINGO, ẩn banner thắng khi chưa có người thắng và bỏ footer thống kê
+- [x] Top trên TV hiển thị người gần KINH; top tiền thắng ẩn cho đến khi admin bấm show
+- [x] Popup phổ biến luật chơi trên màn hình TV, admin có thể bật/tắt
+- [x] Khi sắp KINH, hiển thị rõ sắp vào hàng mấy (hàng 1, hàng 2, hàng 4, hàng chục...)
+- [x] Kết thúc trận đấu: hiện popup tên người thắng to rõ; nếu chơi ván tiếp thì xóa popup nhưng vẫn giữ top người thắng
+- [x] Trang admin dùng preview TV trực tiếp thay ô số vừa xổ/lịch sử số, kèm link TV để mở/sao chép; không cần nút mở TV riêng
 
+### Admin & Money
+- [x] Admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống ghi nhận tiền nợ dựa trên số vé và mức cược
+- [x] Admin có quyền chỉnh tiền người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
+- [x] Admin có thể chỉnh số lượng người chơi tối đa (max players)
+- [x] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
+- [x] Mức cược mỗi vé cập nhật realtime trên TV và Player trước khi phát vé; khóa giá sau khi phát vé để tránh lệch tiền
+- [x] Quản lý tiền người chơi: hiển thị số tiền thắng và số tiền nợ; có field nợ; admin có thể xóa nợ; khi tăng tiền thì tăng nợ nếu checkbox 'đang chơi nợ' được bật
+- [x] Ví player hiển thị đã nạp, tiền thưởng, đang nợ; admin thấy số vé + mã vé, nạp nhanh theo mức cược, nạp tùy chọn và cho vay; tiền thưởng tự trừ nợ
+- [x] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
+- [x] Admin có quyền kick user hiện tại để xoá dữ liệu về họ
+- [x] Không thể bắt đầu xổ số khi chưa có người chơi chốt vé
+- [x] Trang admin cần đăng nhập; mật khẩu hardcode trong source nhưng đã mã hoá; đổi mật khẩu là tùy chọn
 
-- [ ] Trang admin hiển thị link để mở màn hình TV### Admin & Money
-- [ ] Admin xác nhận trả tiền rồi tiếp tục; nếu trả sau hoặc nợ, hệ thống ghi nhận tiền nợ dựa trên số vé và mức cược
-- [ ] Admin có quyền chỉnh tiền người chơi về 0 nếu đã thu tiền trước khi bắt đầu ván
-- [ ] Admin có thể chỉnh số lượng người chơi tối đa (max players)
-- [ ] Admin có thể chỉnh và theo dõi số lượng người thắng (max winners / số người KINH)
-- [ ] Quản lý tiền người chơi: hiển thị số tiền thắng và số tiền nợ; có field nợ; admin có thể xóa nợ; khi tăng tiền thì tăng nợ nếu checkbox 'đang chơi nợ' được bật
-- [ ] Tiền tự động tính trên trang admin dựa trên số vé chọn và mức cược mỗi vé
-
-
-- [ ] Admin có quyền kick user hiện tại để xoá dữ liệu về họ
-- [ ] Không thể bắt đầu xổ số khi chưa có người chơi chốt vé
-- [ ] Trang admin cần đăng nhập; mật khẩu hardcode trong source nhưng đã mã hoá; đổi mật khẩu là tùy chọn### Realtime / Audio
-- [ ] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
-- [ ] Thêm bot đọc số theo phong cách vui nhộn tiếng Việt, linh hoạt theo nhạc thịnh hành
-- [ ] Sau khi đọc một số, nếu phát hiện người gần KINH thì la to tên người sắp KINH; nếu có nhiều người thì đọc tuần tự với ngắt nhịp rõ ràng
+### Realtime / Audio
+- [x] Người tham gia giữa chừng vào hàng chờ và thấy thông báo chờ lượt tiếp theo
+- [x] Bot đọc số bằng tiếng Việt với nhiều lời xướng hô vui nhộn
+- [x] Chọn phong cách xướng hô lấy nhịp từ các thể loại phổ biến (Pop, Rap, Bolero) bằng giọng tổng hợp và câu thoại gốc, không nhúng nhạc/bản ghi có bản quyền
+- [x] Sau khi đọc một số, nếu phát hiện người gần KINH thì la to tên người sắp KINH; nếu có nhiều người thì đọc tuần tự với ngắt nhịp rõ ràng
 
 ### Leaderboard
-- [ ] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
+- [x] Bảng xếp hạng người chơi: chưa có tiền thắng thì sắp xếp theo tên A-Z, sau đó xếp theo số tiền ăn được; top 1/2/3 có vương miện
 
 
 ## Implementation Areas
 ### Frontend
-- QR on TV, rules popup, leaderboard UI, near-KINH display, number drop animation
-- Player join flow, name input, ticket selection, wallet display
-- TV layout: participants panel, top money/winners display
-- Bot announcer UI toggle
+- [x] QR trên TV, popup luật, thông tin người gần KINH và điều khiển bot đọc số cơ bản
+- [x] Bảng xếp hạng/top tiền thắng và popup tổng kết người thắng
+- [x] Hiệu ứng FIFO
+- [x] Luồng chọn vé sau khi nhập tên, UI xác nhận thanh toán/nợ và theo dõi ví
+- [x] Panel TV hiển thị người tham gia và tiến độ vé
 
 ### Backend
-- Mid-game waiting queue, rejoin by name, ticket recovery
-- Money calculation, debt tracking, admin adjustments
-- Game end condition based on winner count
-- Realtime events for players, TV, host
-- State persistence and history
+- [x] Hàng chờ giữa ván, khôi phục người chơi theo tên và thông báo quay lại
+- [x] Sổ cái thanh toán/nợ, điều chỉnh tiền có lưu trữ và lịch sử giao dịch
+- [x] Cấu hình giới hạn người chơi/người thắng và chặn bắt đầu khi chưa có vé chốt
+- [x] Xác thực thao tác quản trị, sự kiện realtime và lưu trạng thái JSON
 
 ## Clarifications
 - Tham gia giữa chừng: người chơi cũ tiếp tục chơi; người mới vào hàng chờ.

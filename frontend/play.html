@@ -4,9 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Vé của tôi - Lô Tô Tết</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <div id="joinNameModal" class="join-name-modal hidden">
+    <form id="joinNameForm">
+      <h2>👋 Chào bạn!</h2>
+      <label for="firstNameInput">Nhập tên để tham gia</label>
+      <input id="firstNameInput" type="text" maxlength="20" autocomplete="name" required />
+      <button class="btn btn-primary" type="submit">Tiếp tục chọn vé</button>
+    </form>
+  </div>
   <div class="player-app">
     <div class="player-header">
       <div class="logo">🧧</div>
@@ -26,40 +35,14 @@
       <b id="lastNumber">--</b>
     </div>
 
-    <div class="name-card">
-      <label>Tên của bạn</label>
-      <div class="name-row">
-        <input id="nameInput" type="text" maxlength="20" placeholder="Nhập tên..." />
-        <button id="btnSaveName" class="btn btn-ghost" style="padding:10px 14px;font-size:14px">Lưu</button>
-      </div>
-      <div class="buy-row">
-        <label for="ticketCount">Số vé muốn mua (tối đa 4)</label>
-        <select id="ticketCount">
-          <option value="1" selected>1 vé</option>
-          <option value="2">2 vé</option>
-          <option value="3">3 vé</option>
-          <option value="4">4 vé</option>
-        </select>
-      </div>
-    </div>
-
     <div class="wallet-card">
-      <div class="wallet-top"><span>💰 Số dư</span><b id="walletBalance">0đ</b></div>
       <div class="wallet-grid">
         <div><span>Đã nạp</span><b id="walletDeposited">0đ</b></div>
-        <div><span>Đã trừ cược</span><b id="walletBet">0đ</b></div>
-        <div><span>Đã tích thưởng</span><b id="walletWon">0đ</b></div>
-      </div>
-      <div class="wallet-recharge">
-        <input id="topupInput" type="number" min="0" step="1000" placeholder="Nhập tiền nạp (VNĐ)..." />
-        <button id="btnTopup" class="btn btn-ghost">+ Nạp</button>
+        <div><span>Tiền thưởng</span><b id="walletWon">0đ</b></div>
+        <div><span>Đang nợ</span><b id="walletDebt">0đ</b></div>
       </div>
     </div>
 
-    <div class="ticket-actions">
-      <button id="btnChange" class="btn btn-ghost">🔄 ĐỔI VÉ</button>
-      <button id="btnLock" class="btn btn-primary">🔒 CHỐT VÉ</button>
-    </div>
     <div id="lockStatus" class="lock-status hidden">🔒 Đã chốt <b id="lockedCode"></b> — bạn đã vào danh sách người chơi!</div>
 
     <div id="waitingBanner" class="waiting-banner hidden">
@@ -72,7 +55,6 @@
       <div class="loto-head">
         <div class="loto-head-left">
           <b>VÉ LÔ TÔ SỐ</b><br/>
-          <span>Vòng loại: <b id="lotoRound">9</b></span><br/>
           <span>Số thứ tự: <b id="lotoSerial">...</b></span>
         </div>
         <div class="loto-head-right">
@@ -87,7 +69,31 @@
         <div class="progress"><div id="progressBar"></div></div>
       </div>
     </div>
+
+    <div class="bottom-bar">
+      <div id="ticketSelection" class="buy-row hidden">
+        <div class="ticket-price">Giá hiện tại: <b id="playerTicketPrice">Đang tải…</b>/vé</div>
+        <label for="ticketCount" class="ticket-qty-label">Số vé muốn mua (tối đa 4)</label>
+        <div class="buy-row-inline">
+          <select id="ticketCount">
+            <option value="1" selected>1 vé</option>
+            <option value="2">2 vé</option>
+            <option value="3">3 vé</option>
+            <option value="4">4 vé</option>
+          </select>
+          <button id="btnJoin" class="btn btn-primary">Nhận vé</button>
+        </div>
+      </div>
+
+      <div class="ticket-actions">
+        <button id="btnChange" class="btn btn-ghost">🔄 ĐỔI VÉ</button>
+        <button id="btnLock" class="btn btn-primary">🔒 CHỐT VÉ</button>
+      </div>
+    </div>
   </div>
+
+  <!-- Popup thông báo -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <!-- Overlay báo KINH -->
   <div id="winOverlay" class="overlay">

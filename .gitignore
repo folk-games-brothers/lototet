@@ -2,3 +2,4 @@ node_modules/
 backend/data/
 *.log
 .DS_Store
+backend/src/data/

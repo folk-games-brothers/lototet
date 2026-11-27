@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loto Tet - Test Dashboard</title>
+<style>
+  :root{--bg:#171313;--panel:#241d1d;--panel2:#2e2525;--line:rgba(255,212,94,.2);
+    --gold:#ffd54f;--cream:#fff3cf;--muted:#c9ac86;--pass:#4ade80;--fail:#ff6b6b;--run:#60a5fa}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--cream);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+  .app{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
+  aside{border-right:1px solid var(--line);padding:18px 12px;background:#141010}
+  aside h2{margin:0 0 14px;font-size:15px;color:var(--gold)}
+  .suite-item{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;margin-bottom:4px;border-radius:8px;
+    border:1px solid transparent;background:transparent;color:var(--cream);cursor:pointer;text-align:left;font:inherit}
+  .suite-item:hover{background:var(--panel2)}
+  .suite-item.active{border-color:var(--gold);background:rgba(255,213,79,.09)}
+  .suite-item .name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .suite-item .badges{display:flex;gap:4px;font-size:10px}
+  .suite-item .p{color:var(--pass)} .suite-item .f{color:var(--fail)}
+  main{padding:20px 24px;max-height:100vh;overflow:auto;min-width:0}
+  .control{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .control-head{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .selected-title{font-size:18px;font-weight:800;color:var(--gold)}
+  .selected-types{font-size:11px;color:var(--muted);margin-top:2px}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);padding:8px 12px;cursor:pointer}
+  button:hover:not(:disabled){filter:brightness(1.15)}
+  button.primary{background:linear-gradient(135deg,#b81c1c,#7a1010);border-color:var(--gold);font-weight:800}
+  button:disabled{opacity:.5;pointer-events:none}
+  .bots{display:flex;gap:4px;align-items:center}
+  .bots button{padding:6px 10px}
+  .bots button.active{background:var(--gold);color:#4a1205;font-weight:800}
+  .bots input{width:58px;padding:6px;border-radius:8px;border:1px solid var(--line);background:#120f0f;color:var(--cream)}
+  .spinner{display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  button.loading .spinner{display:inline-block}
+  .progress{height:9px;background:#4a2424;border-radius:999px;overflow:hidden;margin-top:12px}
+  .progress .bar{height:100%;width:0;background:linear-gradient(90deg,var(--run),var(--pass),var(--gold));transition:width .18s ease}
+  .progress-meta{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted);margin-top:5px;min-height:17px}
+  .progress-meta .pct{color:var(--gold);font-variant-numeric:tabular-nums}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .stat .label{font-size:10px;color:var(--muted);text-transform:uppercase}
+  .stat .value{font-size:23px;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat.pass .value{color:var(--pass)} .stat.fail .value{color:var(--fail)} .stat.time .value{color:var(--gold)}
+  .fail-banner{background:rgba(180,20,20,.16);border:1px solid var(--fail);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .fail-banner b{color:var(--fail)}
+  .fail-banner button{display:inline-block;margin:5px 5px 0 0;padding:3px 8px;font-size:11px;border-color:var(--fail);color:#ffd0d0}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .segmented{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--panel)}
+  .segmented button{border:none;background:transparent;color:var(--muted);padding:5px 12px;border-radius:999px;font-size:12px}
+  .segmented button.active{background:var(--gold);color:#4a1205;font-weight:800}
+  .ghost{font-size:12px;padding:6px 10px}
+  .group{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
+  .group-head{padding:9px 12px;background:var(--panel2);display:flex;gap:8px;font-weight:700;color:var(--gold)}
+  .group-head small{margin-left:auto;color:var(--muted);font-weight:400}
+  .rows{padding:5px 10px 9px}
+  .row{border-top:1px dashed var(--line);padding:5px 2px}
+  .row:first-child{border-top:none}
+  .row-head{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px}
+  .row-head .name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row-head .dur{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+  .cat{font-size:9px;font-weight:800;border:1px solid currentColor;color:#9ecbff;border-radius:999px;padding:1px 6px}
+  .cat.Concurrency{color:#c4b5fd}.cat.Unit{color:#7dd3fc}.cat.Regression{color:#fcd34d}.cat.Load{color:#f9a8d4}
+  .detail{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+  .io{background:#120f0f;border:1px solid var(--line);border-radius:8px;padding:8px;min-width:0}
+  .io h4{margin:0 0 4px;color:var(--gold);font-size:11px}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;font:11px/1.45 ui-monospace,Menlo,monospace;color:#ffe9bd}
+  .error-box{grid-column:1/-1;background:rgba(255,107,107,.12);border:1px solid var(--fail);border-radius:8px;padding:8px}
+  .error-box b{color:var(--fail)}
+  .flash{animation:flashRow 1s ease}@keyframes flashRow{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 2px var(--fail) inset}}
+  .logbox{display:none;background:#120f0f;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:150px;overflow:auto;
+    font:11px/1.4 ui-monospace,Menlo,monospace;color:#ffd9a0;white-space:pre-wrap}
+  @media(max-width:820px){.app{grid-template-columns:1fr}aside{border-right:none;border-bottom:1px solid var(--line)}main{max-height:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h2>🧪 Test Dashboard</h2>
+    <div id="suiteList"></div>
+  </aside>
+  <main>
+    <section class="control">
+      <div class="control-head">
+        <div>
+          <div class="selected-title" id="selectedTitle">Tất cả bài test</div>
+          <div class="selected-types" id="selectedTypes">Loại kiểm thử: —</div>
+        </div>
+        <div class="actions">
+          <div class="bots" id="botPicker" hidden>
+            <button data-bots="20">20</button><button data-bots="50" class="active">50</button><button data-bots="100">100</button><button data-bots="1000">1000</button>
+            <input id="botsCustom" type="number" min="1" max="2000" value="50" />
+          </div>
+          <button id="btnRunAll">Chạy tất cả</button>
+          <button class="primary" id="btnRun"><span class="spinner"></span>▶ CHẠY TEST</button>
+        </div>
+      </div>
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="progress-meta"><span id="progressInfo">Đang khởi chạy tiến trình kiểm thử, vui lòng chờ...</span><span class="pct" id="pct">0%</span></div>
+    </section>
+
+    <div class="stats">
+      <div class="stat"><div class="label">Tổng số test</div><div class="value" id="sumTotal">0</div></div>
+      <div class="stat pass"><div class="label">Pass</div><div class="value" id="sumPass">0</div></div>
+      <div class="stat fail"><div class="label">Fail</div><div class="value" id="sumFail">0</div></div>
+      <div class="stat time"><div class="label">Tổng thời gian (ms)</div><div class="value" id="sumTime">0</div></div>
+    </div>
+
+    <div class="fail-banner" id="failBanner" hidden><b>⚠ Ca bị FAIL:</b><div id="failList"></div></div>
+
+    <div class="toolbar">
+      <div class="segmented" id="segmented">
+        <button data-filter="all" class="active">Tất cả</button>
+        <button data-filter="pass">Đạt (Pass)</button>
+        <button data-filter="fail">Lỗi (Fail)</button>
+      </div>
+      <button class="ghost" id="toggleExpand">Mở rộng tất cả</button>
+    </div>
+
+    <div id="results"></div>
+    <div class="logbox" id="logbox"></div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const $=(id)=>document.getElementById(id);
+  const SIDEBAR=[
+    {id:'all',icon:'🧪',name:'Tất cả bài test'},
+    {id:'server',icon:'⚙️',name:'Nghiệp vụ & Tài chính'},
+    {id:'frontend',icon:'🐐',name:'Giao diện & Dê Lửa'},
+    {id:'audio',icon:'🔊',name:'Âm thanh Lồng cầu'},
+    {id:'concurrency',icon:'🛡️',name:'Chống trùng vé (Concurrency)'},
+    {id:'load',icon:'🚀',name:'Chịu tải (Load Test)'},
+  ];
+  const state={suites:new Map(),selected:'all',bots:50,isRunning:false,source:null,
+    total:0,completed:0,pass:0,fail:0,duration:0,percent:0,currentTestName:'',
+    groups:new Map(),expanded:new Set(),filter:'all',failed:[],counter:0,allExpanded:false,started:false};
+
+  const esc=(v)=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const pretty=(v)=>{
+    if(v===undefined||v===null)return null;
+    if(typeof v==='string'){try{return JSON.stringify(JSON.parse(v),null,2)}catch(e){return v}}
+    try{return JSON.stringify(v,null,2)}catch(e){return String(v)}
+  };
+  const ioFrom=(diagnostics)=>{
+    let input=null,output=null;
+    for(const m of diagnostics||[]){if(String(m).startsWith('__IO__:')){try{const p=JSON.parse(String(m).slice(7));input=p.input;output=p.output}catch(e){}}}
+    return {input,output};
+  };
+
+  function renderSidebar(){
+    const host=$('suiteList');host.innerHTML='';
+    for(const item of SIDEBAR){
+      const b=document.createElement('button');
+      b.className='suite-item'+(item.id===state.selected?' active':'');
+      b.dataset.suiteId=item.id;
+      b.innerHTML=`<span>${item.icon}</span><span class="name">${esc(item.name)}</span>`+
+        `<span class="badges"><i class="p">P0</i><i class="f">F0</i></span>`;
+      b.onclick=()=>selectSuite(item.id);
+      host.appendChild(b);
+    }
+  }
+  function selectSuite(id){
+    state.selected=id;
+    document.querySelectorAll('.suite-item').forEach(b=>b.classList.toggle('active',b.dataset.suiteId===id));
+    const short=SIDEBAR.find(s=>s.id===id);
+    const meta=state.suites.get(id);
+    $('selectedTitle').textContent=short?short.name:(meta?meta.label:id);
+    $('selectedTypes').textContent='Loại kiểm thử: '+(meta?meta.typesLabel:'—');
+    $('botPicker').hidden=id!=='load';
+  }
+  function updateBadges(){
+    for(const item of SIDEBAR){
+      const b=document.querySelector(`[data-suite-id="${item.id}"]`);if(!b)continue;
+      let p=0,f=0;
+      for(const g of state.groups.values()){
+        const belongs=item.id==='all'||g.suite===item.id||(item.id==='regression'&&['server','frontend','audio'].includes(g.suite));
+        if(!belongs)continue;
+        for(const t of g.tests.values()){if(t.status==='PASS')p++;if(t.status==='FAIL')f++;}
+      }
+      b.querySelector('.p').textContent='P'+p;b.querySelector('.f').textContent='F'+f;
+    }
+  }
+  function updateStats(){
+    $('sumTotal').textContent=state.total;
+    $('sumPass').textContent=state.pass;
+    $('sumFail').textContent=state.fail;
+    $('sumTime').textContent=state.duration;
+    $('bar').style.width=state.percent+'%';
+    $('pct').textContent=state.percent+'%';
+  }
+  function updateProgress(payload){
+    if(typeof payload.percent==='number')state.percent=payload.percent;
+    if(typeof payload.total==='number')state.total=Math.max(state.total,payload.total);
+    if(typeof payload.completed==='number')state.completed=payload.completed;
+    if(payload.currentTestName)state.currentTestName=payload.currentTestName;
+    if(state.started){
+      $('progressInfo').textContent=state.currentTestName?('Đang kiểm tra: '+state.currentTestName):'Đang chạy...';
+    }
+    updateStats();
+  }
+  function lockRun(clicked){
+    state.isRunning=true;state.started=false;
+    for(const b of [$('btnRun'),$('btnRunAll')]){b.disabled=true;b.classList.remove('loading')}
+    clicked.classList.add('loading');
+    $('progressInfo').textContent='Đang khởi chạy tiến trình kiểm thử, vui lòng chờ...';
+  }
+  function unlockRun(){
+    state.isRunning=false;state.started=false;
+    for(const b of [$('btnRun'),$('btnRunAll')]){b.disabled=false;b.classList.remove('loading')}
+  }
+
+  function ensureGroup(file,suite){
+    if(!state.groups.has(file)){
+      const box=document.createElement('div');box.className='group';
+      box.innerHTML=`<div class="group-head"><span>${esc(file)}</span><small>0 test · 0 ms</small></div><div class="rows"></div>`;
+      $('results').appendChild(box);
+      state.groups.set(file,{file,suite,tests:new Map(),rows:box.querySelector('.rows'),meta:box.querySelector('.group-head small')});
+    }
+    return state.groups.get(file);
+  }
+  function refreshGroup(group){
+    const tests=[...group.tests.values()];
+    const ms=tests.reduce((n,t)=>n+t.durationMs,0);
+    group.meta.textContent=`${tests.length} test · ${ms} ms`;
+  }
+  function createRow(event){
+    const group=ensureGroup(event.file||'unknown.test.js',event.suite||state.selected);
+    const key=String(event.name||'test-'+(++state.counter));
+    if(group.tests.has(key))return group.tests.get(key);
+    const row=document.createElement('div');row.className='row';row.id='row-'+(++state.counter);
+    row.innerHTML=`<div class="row-head"><span class="cat ${esc(event.category||'Integration')}">${esc(event.category||'Integration')}</span>`+
+      `<span class="mark">◌</span><span class="name">${esc(key)}</span><span class="dur">0 ms</span></div>`+
+      `<div class="detail" hidden></div>`;
+    group.rows.appendChild(row);
+    const test={key,row,group,status:'RUNNING',durationMs:0,diagnostics:[],input:null,output:null,error:null,hasDetail:false};
+    group.tests.set(key,test);refreshGroup(group);
+    row.querySelector('.row-head').onclick=()=>{
+      if(!test.hasDetail)return;
+      if(state.expanded.has(key))state.expanded.delete(key);else state.expanded.add(key);
+      row.querySelector('.detail').hidden=!state.expanded.has(key);
+    };
+    return test;
+  }
+  function fillDetail(test){
+    const io=ioFrom(test.diagnostics);
+    const input=test.input!==null&&test.input!==undefined?test.input:io.input;
+    const output=test.output!==null&&test.output!==undefined?test.output:io.output;
+    const hasIO=input!==null&&input!==undefined||output!==null&&output!==undefined;
+    const hasError=!!test.error;
+    const detail=test.row.querySelector('.detail');
+    detail.innerHTML='';
+    if(hasIO){
+      const box=document.createElement('div');box.className='detail';
+      box.innerHTML=`<div class="io"><h4>Input</h4><pre>${esc(pretty(input))}</pre></div>`+
+        `<div class="io"><h4>Output</h4><pre>${esc(pretty(output))}</pre></div>`;
+      detail.appendChild(box.firstElementChild);detail.appendChild(box.lastElementChild);
+      test.hasDetail=true;
+    }
+    if(hasError){
+      const errorBox=document.createElement('div');errorBox.className='error-box';
+      errorBox.innerHTML=`<b>Expected vs Actual / Lỗi</b><pre>EXPECTED:\n${esc(pretty(test.error.expected))}\n\nACTUAL:\n${esc(pretty(test.error.actual))}\n\nMESSAGE:\n${esc(test.error.message||'')}\n\nSTACK:\n${esc(test.error.stack||'')}</pre>`;
+      detail.appendChild(errorBox);test.hasDetail=true;
+    }
+    detail.hidden=!state.expanded.has(test.key);
+  }
+  function finishTest(event){
+    const test=createRow(event);
+    test.status=event.type==='test:pass'?'PASS':'FAIL';
+    test.durationMs=event.durationMs||0;
+    test.diagnostics=event.diagnostics||[];
+    test.error=event.error||null;
+    const mark=test.row.querySelector('.mark');
+    mark.textContent=test.status==='PASS'?'✔':'✖';
+    mark.style.color=test.status==='PASS'?'var(--pass)':'var(--fail)';
+    test.row.querySelector('.dur').textContent=test.durationMs+' ms';
+    fillDetail(test);
+    refreshGroup(test.group);
+    if(test.status==='FAIL'){
+      state.expanded.add(test.key);
+      test.row.querySelector('.detail').hidden=false;
+      state.failed.push(test);
+      renderFailBanner();
+    }
+    state.pass=[...state.groups.values()].reduce((n,g)=>n+[...g.tests.values()].filter(t=>t.status==='PASS').length,0);
+    state.fail=state.failed.length;
+    updateBadges();updateStats();applyFilter();
+  }
+  function renderFailBanner(){
+    const banner=$('failBanner');
+    if(!state.failed.length){banner.hidden=true;return}
+    banner.hidden=false;
+    const host=$('failList');host.innerHTML='';
+    for(const test of state.failed){
+      const b=document.createElement('button');b.textContent=test.key;
+      b.onclick=()=>{
+        test.row.scrollIntoView({behavior:'smooth',block:'center'});
+        test.row.classList.remove('flash');void test.row.offsetWidth;test.row.classList.add('flash');
+      };
+      host.appendChild(b);
+    }
+  }
+  function applyFilter(){
+    for(const g of state.groups.values())for(const t of g.tests.values()){
+      const show=state.filter==='all'||(state.filter==='pass'?t.status==='PASS':t.status==='FAIL');
+      t.row.style.display=show?'':'none';
+    }
+  }
+  function toggleExpandAll(){
+    state.allExpanded=!state.allExpanded;
+    for(const g of state.groups.values())for(const t of g.tests.values()){
+      if(!t.hasDetail)continue;
+      if(state.allExpanded)state.expanded.add(t.key);else state.expanded.delete(t.key);
+      t.row.querySelector('.detail').hidden=!state.allExpanded;
+    }
+    $('toggleExpand').textContent=state.allExpanded?'Thu gọn':'Mở rộng tất cả';
+  }
+  function log(line){
+    const box=$('logbox');box.style.display='block';
+    if(box.textContent.split('\n').length>150)box.textContent='';
+    box.textContent+=line+'\n';box.scrollTop=box.scrollHeight;
+  }
+  function renderLoadMetrics(event){
+    const m=event.metrics;
+    const text=`Users ${m.users} · Tickets ${m.tickets} · Avg ${m.avg}ms · p95 ${m.p95}ms · p99 ${m.p99}ms · ${m.consistent?'ĐẠT':'KHÔNG ĐẠT'}`;
+    const test=createRow({file:'load-test.js',name:'Load Test · '+event.users+' bots',category:'Load',suite:'load'});
+    test.status=m.consistent?'PASS':'FAIL';
+    test.durationMs=0;
+    test.input=event.input;test.output=event.output;
+    test.row.querySelector('.mark').textContent=test.status==='PASS'?'✔':'✖';
+    test.row.querySelector('.dur').textContent=text;
+    fillDetail(test);
+    state.expanded.add(test.key);test.row.querySelector('.detail').hidden=false;
+    if(test.status==='FAIL'){state.failed.push(test);renderFailBanner()}
+    state.pass+=test.status==='PASS'?1:0;state.fail+=test.status==='FAIL'?1:0;
+    updateBadges();updateStats();
+  }
+  function resetRun(suite){
+    state.groups.clear();state.expanded.clear();state.failed=[];
+    state.total=0;state.completed=0;state.pass=0;state.fail=0;state.duration=0;state.percent=0;state.currentTestName='';
+    $('results').innerHTML='';$('failBanner').hidden=true;$('failList').innerHTML='';
+    $('logbox').textContent='';$('logbox').style.display='none';
+    $('progressInfo').textContent='Đang khởi chạy tiến trình kiểm thử, vui lòng chờ...';
+    updateStats();
+  }
+  function handle(event){
+    if(event.type==='run:start'){
+      resetRun(event.suite);
+      state.started=true;
+      $('progressInfo').textContent='Đang chạy...';
+      return;
+    }
+    if(event.type==='progress'){updateProgress(event);return}
+    if(event.type==='test:start'){createRow(event);updateProgress({currentTestName:event.name});return}
+    if(event.type==='test:diagnostic'){
+      const group=ensureGroup(event.file||'unknown.test.js',state.selected);
+      for(const t of group.tests.values())if(t.key===event.name)t.diagnostics.push(event.message);
+      return;
+    }
+    if(event.type==='test:pass'||event.type==='test:fail'){finishTest(event);return}
+    if(event.type==='load:log'){log(event.line);return}
+    if(event.type==='load:metrics'){renderLoadMetrics(event);return}
+    if(event.type==='run:done'||event.type==='done'){
+      state.percent=100;state.duration=event.durationMs||state.duration;
+      $('progressInfo').textContent='Hoàn tất · '+(event.passed||0)+' pass / '+(event.failed||0)+' fail';
+      updateStats();unlockRun();
+      if(state.source){state.source.close();state.source=null}
+    }
+  }
+  function start(suite,clicked){
+    if(state.isRunning)return;
+    lockRun(clicked||$('btnRun'));
+    selectSuite(suite);
+    if(state.source)state.source.close();
+    const source=new EventSource('/api/run?suite='+encodeURIComponent(suite)+'&users='+state.bots);
+    state.source=source;
+    source.onmessage=(message)=>{try{handle(JSON.parse(message.data))}catch(e){log('Lỗi parse event: '+e.message)}};
+    source.onerror=()=>{
+      if(state.isRunning){unlockRun();$('progressInfo').textContent='Mất kết nối SSE — hãy thử lại.'}
+      source.close();state.source=null;
+    };
+  }
+  $('btnRun').addEventListener('click',()=>start(state.selected,$('btnRun')));
+  $('btnRunAll').addEventListener('click',()=>start('all',$('btnRunAll')));
+  document.querySelectorAll('[data-bots]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-bots]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');state.bots=Number(b.dataset.bots);$('botsCustom').value=state.bots;
+  }));
+  $('botsCustom').addEventListener('change',(e)=>{
+    state.bots=Math.max(1,Math.min(2000,Number(e.target.value)||50));e.target.value=state.bots;
+    document.querySelectorAll('[data-bots]').forEach(b=>b.classList.toggle('active',Number(b.dataset.bots)===state.bots));
+  });
+  document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-filter]').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');state.filter=b.dataset.filter;applyFilter();
+  }));
+  $('toggleExpand').addEventListener('click',toggleExpandAll);
+
+  async function init(){
+    try{
+      const data=await (await fetch('/api/suites')).json();
+      for(const s of data.suites)state.suites.set(s.id,s);
+      renderSidebar();selectSuite('all');updateStats();
+    }catch(e){$('progressInfo').textContent='Không tải được danh mục test: '+e.message}
+  }
+  init();
+})();
+</script>
+</body>
+</html>

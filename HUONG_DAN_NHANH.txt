@@ -1,20 +1,64 @@
 ========================================
-  XỔ LÔ TÔ TẾT - CÀI ĐẶT NHANH (3 BƯỚC)
+  XỔ LÔ TÔ TẾT - HƯỚNG DẪN NHANH
 ========================================
-1) Cai Node.js LTS: https://nodejs.org (neu chua co).
-2) Giai nen thu muc lototet, vi du E:\Tools_Vip\Tools\lototet
-3) Double-click "Chay-May-Chu.cmd" -> tu npm install lan dau -> chay server.
 
-- Trang quan ly: http://localhost:3000
-  + Dat so ve, muc cuoc/ve, thoi gian quay tay va quay tu dong.
-  + Tong tien giai TU DONG = so ve da ban x muc cuoc.
-  + "XỔ SỐ NGAY": quay 1 so. "TỰ XỔ ĐẾN KHI CÓ KINH": tu chay, tu dung khi co kinh,
-    hien bang tong ket tien thang/thua + nut "Quay tiep luot moi".
-  + "Xem trước ĐT": doi so vé 1-4 ngay trong khung.
-  + "Man hinh TV": http://<IP-may>:3000/tv.html (F11).
+1) CÀI ĐẶT LẦN ĐẦU
+   - Cài Node.js LTS: https://nodejs.org
+   - Giải nén thư mục lototet, ví dụ E:\Tools_Vip\Tools\lototet
+   - Windows: double-click file "Chay-May-Chu.cmd" ở thư mục gốc.
+     File này gọi backend\Chay-May-Chu.cmd, tự kiểm tra backend\node_modules,
+     tự npm install nếu thiếu, rồi hỏi có mở sẵn 3 trang trình duyệt không (Y/N).
 
-LUU Y
-- Firewall hoi lan dau -> chon Allow / Mang rieng.
-- Muon giu lich su: copy them thu muc "data" tu may cu.
-- QR sai IP: sua ham getLocalIP() trong server.js.
-- Trung cong 3000: "set PORT=8080 && npm start".
+2) KHỞI ĐỘNG BẰNG NPM (mọi hệ điều hành)
+   Trong thư mục gốc lototet:
+
+   npm start
+       -> Chạy server bình thường.
+       -> Terminal in bảng 3 đường dẫn (Local + LAN IP):
+            1. Quản trò (Admin):  http://localhost:3000/
+            2. Màn hình TV:       http://localhost:3000/tv.html
+            3. Người chơi:        http://localhost:3000/play.html
+            4. Test Dashboard:    http://localhost:3001/  (chạy riêng bằng npm run test:ui)
+          Mỗi dòng có thêm link LAN tương ứng http://<IP-LAN>:3000/...
+
+   npm run start:open
+       -> Giống npm start nhưng TỰ MỞ ĐỒNG THỜI cả 3 trang trên trình duyệt.
+       -> macOS dùng `open`, Windows dùng `start`, Linux dùng `xdg-open`.
+
+   Có thể đổi cổng: PORT=8080 npm start  (Windows: set PORT=8080 && npm start)
+
+3) CHẠY TEST
+   npm test
+       -> Chạy toàn bộ file *.test.js trong backend/test/
+          (server, frontend, audio, concurrency, ...).
+
+   npm run test:ui
+       -> Mở Test Dashboard trên trình duyệt: http://localhost:3001/
+          Bấm "▶ CHẠY TEST" để chạy từng nhóm; chọn 20/50/100/1000 bot cho Load Test.
+
+   npm run test:menu
+       -> Mở menu test tương tác trên terminal:
+            ↑/↓ chọn, Enter chạy, gõ số 1-9 chọn nhanh,
+            0 hoặc q để thoát.
+          Có mục chạy toàn bộ, từng file riêng, và Load Test.
+          Sau mỗi bài test hiện "Nhấn Enter để quay lại menu...".
+
+   npm run load-test
+       -> Chạy load test mặc định 50 người chơi ảo.
+       -> Tuỳ chọn: npm run load-test -- --players=100
+                   LOAD_TEST_PLAYERS=80 node backend/test/load-test.js
+
+   Menu Load Test tự kiểm tra cổng 3000: nếu chưa có server thì tự khởi
+   động server tạm, chờ sẵn sàng, chạy xong thì tự tắt server tạm đó.
+
+4) SỬ DỤNG
+   - Admin: đặt cài đặt ván, bật luật chơi, bot đọc số, âm thanh lồng cầu.
+   - TV: mở http://localhost:3000/tv.html, nhấn F11 để toàn màn hình.
+   - Điện thoại: quét mã QR trên TV (cùng mạng LAN) để vào play.html.
+   - Chọn vé bằng số dư đã nạp qua Quản trò, bấm CHỐT VÉ trước khi xổ.
+
+LƯU Ý
+- Firewall lần đầu hãy chọn Allow / Mang riêng để điện thoại kết nối được.
+- Muốn giữ lịch sử: copy thư mục "backend/data" từ máy cũ.
+- IP LAN được tự chọn theo thứ tự ưu tiên 192.168.x.x > 10.x.x.x > 172.16-31.x.x.
+- Trùng cổng 3000: dùng biến PORT như hướng dẫn ở mục 2.

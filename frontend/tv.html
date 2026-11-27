@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Màn hình TV - Xổ Lô Tô Tết</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
   <link rel="stylesheet" href="/css/tv.css" />
 </head>
@@ -15,34 +16,167 @@
       <div class="tv-sub">Chúc mừng năm mới · Vạn sự như ý · Lô tô trúng lớn!</div>
     </header>
 
+    <div id="kinhBanner" class="kinh-banner hidden" role="status" aria-live="polite"></div>
+  <div id="tvQr" class="tv-qr"><img id="tvQrImg" alt="QR" src="" /><div id="tvQrUrl" class="tv-qr-url"></div></div>
+  <!-- Gợi ý kích hoạt loa TV (chỉ hiện khi Admin bật âm thanh mà trình duyệt còn giữ AudioContext suspended) -->
+  <div id="tvAudioHint" class="tv-audio-hint hidden" role="status" aria-live="polite">🔊 Chạm vào màn hình để kích hoạt loa TV</div>
+    <!-- Bảng luật chơi: chỉ hiện khi Admin bật, tự tắt khi bắt đầu quay số. -->
+    <div id="tvRules" class="tv-rules hidden" role="dialog" aria-modal="true" aria-labelledby="tvRulesTitle">
+      <div class="rules-board">
+        <div class="rules-deco" aria-hidden="true">🧧 ⭐ 🏮 ⭐ 🧧</div>
+        <h2 id="tvRulesTitle" class="rules-title">LUẬT CHƠI LÔ TÔ NGÀY TẾT</h2>
+        <div class="rules-list">
+          <div class="rules-item">
+            <b>1. Nạp tiền qua Quản trò</b>
+            <p>Đưa tiền mặt hoặc chuyển khoản cho Quản trò để được nạp số dư vào tài khoản. Bạn có thể nạp sẵn một khoản lớn để sử dụng dần qua nhiều ván.</p>
+          </div>
+          <div class="rules-item">
+            <b>2. Chọn &amp; Chốt vé</b>
+            <p>Quét mã QR trên màn hình TV để vào phòng, chọn vé yêu thích bằng số dư hiện có và bấm "Chốt vé" trước khi ván bắt đầu. Vé chưa chốt sẽ không được tính thưởng.</p>
+          </div>
+          <div class="rules-item">
+            <b>3. Cách dò số</b>
+            <p>Mỗi tờ vé gồm 9 hàng ngang (mỗi hàng 5 số từ 01 đến 90). Hệ thống tự động đánh dấu số trùng khớp trên điện thoại mỗi khi lồng cầu chốt số.</p>
+          </div>
+          <div class="rules-item">
+            <b>4. Điều kiện KINH &amp; Nhận thưởng</b>
+            <p>Có đủ 5 số trên cùng 1 hàng ngang trùng với các số đã xổ là thắng cuộc (KINH — không tính cột dọc hay đường chéo). Tiền thưởng được cộng vào tài khoản để Quản trò trả thưởng hoặc cấn trừ trực tiếp.</p>
+          </div>
+        </div>
+        <div class="rules-foot">Chúc mừng năm mới Đinh Mùi 2027 · Vạn sự như ý 🎊</div>
+      </div>
+    </div>
+
     <main class="tv-main">
       <div id="tvNumberWrap" class="tv-number-wrap">
-        <div class="tv-label">SỐ VỪA XỔ</div>
-        <div id="tvNumber" class="tv-number"><span class="tv-placeholder">--</span></div>
+        <div class="tv-label">LỒNG CẦU LÔ TÔ</div>
+        <div id="tvLastDraw" class="tv-last-draw" aria-live="polite" aria-label="Số vừa xổ">
+          <div class="tv-last-caption">SỐ VỪA XỔ</div>
+          <div class="tv-last-stage">
+            <div class="tv-last-glow" aria-hidden="true"></div>
+            <div class="tv-last-ripple" aria-hidden="true"></div>
+            <span class="tv-last-spark s1" aria-hidden="true">✦</span>
+            <span class="tv-last-spark s2" aria-hidden="true">✦</span>
+            <span class="tv-last-spark s3" aria-hidden="true">✧</span>
+            <span class="tv-last-spark s4" aria-hidden="true">✧</span>
+            <div id="tvLastBall" class="tv-last-ball is-waiting">--</div>
+          </div>
+        </div>
+        <div class="tv-draw-machine" id="tvMachine">
+          <div id="tvCage" class="tv-cage" aria-hidden="true">
+            <div class="tv-cage-inner"><div id="tvCageBalls" class="tv-cage-balls"></div></div>
+            <span class="tv-cage-ring tv-cage-ring-a"></span>
+            <span class="tv-cage-ring tv-cage-ring-b"></span>
+            <span class="tv-cage-axis"></span>
+            <span class="tv-cage-exit" aria-hidden="true"></span>
+          </div>
+          <svg class="tv-funnel" viewBox="0 0 160 70" aria-hidden="true">
+            <path d="M2 4h31l31 54 M96 58l31-54h31" />
+            <ellipse cx="80" cy="60" rx="18" ry="7" />
+          </svg>
+          <canvas id="tvPhysics" class="tv-physics-canvas" aria-hidden="true"></canvas>
+          <div id="tvDropLayer" class="tv-drop-layer" aria-hidden="true"></div>
+        </div>
         <div id="tvStatus" class="tv-status">Sẵn sàng · Chờ lượt xổ đầu tiên</div>
-        <div class="tv-bet">💵 Mức cược: <b id="tvBet">5.000đ/vé</b></div>
+        <div class="tv-bet">💵 Mức cược: <b id="tvBet">Đang tải…</b></div>
       </div>
     </main>
 
-    <section id="tvWinner" class="tv-winner">
-      <div id="tvWinnerTitle" class="tv-winner-title">🎉 KINH! 🎉</div>
-      <div id="tvWinnerName" class="tv-winner-name">Chưa có người kinh</div>
-      <div id="tvWinnerInfo" class="tv-winner-info">Đang chờ người may mắn…</div>
+    <section id="tvWinner" class="tv-winner hidden">
+      <div id="tvWinnerTitle" class="tv-winner-title"></div>
+      <div id="tvWinnerName" class="tv-winner-name"></div>
+      <div id="tvWinnerInfo" class="tv-winner-info"></div>
       <div id="tvWinnerMoney" class="tv-winner-money"></div>
     </section>
 
-    <div id="tvHistory" class="tv-history"></div>
+    <!-- Bảng vinh danh chính thức: chỉ hiện khi ván đã đủ điều kiện dừng. -->
+    <div id="tvKinhOverlay" class="kinh-overlay hidden" role="dialog" aria-modal="true" aria-label="CHÚC MỪNG KINH">
+      <div id="tvConfetti" class="kinh-confetti" aria-hidden="true"></div>
+      <div class="kinh-board">
+        <div class="kinh-crown" aria-hidden="true">🏆 🎉 🏆</div>
+        <h2 class="kinh-title">CHÚC MỪNG KINH!</h2>
+        <div class="kinh-subtitle">Đã đủ số người Kinh · Tiền thưởng đã chia đều</div>
+        <div id="tvKinhWinners" class="kinh-winners"></div>
+        <div class="kinh-footnote">Chờ Admin bấm <b>QUA VÁN MỚI</b> để tiếp tục 🎊</div>
+      </div>
+    </div>
 
-    <footer class="tv-footer">
-      <div>👥 Đã chốt: <b id="tvPlayers">0</b></div>
-      <div>🔢 Đã xổ: <b id="tvDrawn">0</b></div>
-      <div>🏆 Kinh: <b id="tvKinh">0</b></div>
-      <div>💰 Mỗi kinh: <b id="tvPrize">0đ</b></div>
-      <div>💵 Tổng giải: <b id="tvPool">0đ</b></div>
-    </footer>
+    <section id="tvPlayersPanel" class="tv-players-panel">
+      <h3>Người tham gia</h3>
+      <div id="tvPlayersList" class="tv-players-list"></div>
+    </section>
+    <section id="tvLeaderboard" class="tv-leaderboard hidden">
+      <h3>🏆 Bảng xếp hạng tiền thắng</h3>
+      <div id="tvLeaderboardList"></div>
+    </section>
+
+    <!-- Nhân vật MC linh vật Dê Lửa Đinh Mùi 2027 -->
+    <div id="tvMascot" class="tv-mascot state-normal" aria-live="polite">
+      <div id="mascotBubble" class="mascot-bubble">
+        <span id="mascotText">Chào mừng năm mới Đinh Mùi 2027!</span>
+      </div>
+      <svg class="mascot-svg" viewBox="0 0 140 175" width="145" height="175" aria-hidden="true">
+        <defs>
+          <linearGradient id="fireGrad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#FF2A00"/>
+            <stop offset="50%" stop-color="#FF6B00"/>
+            <stop offset="100%" stop-color="#FFD700"/>
+          </linearGradient>
+          <filter id="fireGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.5" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g class="mascot-tail">
+          <path d="M28 120 Q18 105 22 90 Q26 100 30 95 Q32 110 28 120 Z" fill="url(#fireGrad)"/>
+        </g>
+        <!-- Chỏm đuôi bốc lửa ló ra bên hông thân áo 2027 -->
+        <g class="mascot-tail-side">
+          <path d="M98 128 Q112 120 108 108 Q104 118 100 114 Q96 124 98 128 Z" fill="url(#fireGrad)"/>
+        </g>
+        <rect x="50" y="150" width="8" height="20" rx="3" fill="#FFF5E1"/>
+        <rect x="78" y="150" width="8" height="20" rx="3" fill="#FFF5E1"/>
+        <ellipse cx="70" cy="130" rx="34" ry="30" fill="#FFF5E1" class="mascot-body"/>
+        <path d="M42 118 Q70 108 98 118 L98 150 Q70 160 42 150 Z" fill="#B81C1C" stroke="#FFD700" stroke-width="2"/>
+        <text x="70" y="140" text-anchor="middle" font-size="16" font-weight="900" fill="#FFD700">2027</text>
+        <g class="mascot-head">
+          <!-- Đôi tai vểnh ngang hai bên đầu (tách biệt với sừng lửa ở đỉnh) -->
+          <path class="mascot-ear mascot-ear-left" d="M40 74 Q26 68 30 82 Q36 86 44 80 Z" fill="#FFF5E1" stroke="#FFB3A0" stroke-width="2"/>
+          <path class="mascot-ear mascot-ear-right" d="M100 74 Q114 68 110 82 Q104 86 96 80 Z" fill="#FFF5E1" stroke="#FFB3A0" stroke-width="2"/>
+          <g class="mascot-horns">
+            <path d="M52 56 Q44 30 58 40 Q56 48 52 56" fill="url(#fireGrad)"/>
+            <path d="M88 56 Q96 30 82 40 Q84 48 88 56" fill="url(#fireGrad)"/>
+          </g>
+          <circle cx="70" cy="78" r="30" fill="#FFF5E1"/>
+          <!-- Lông mày -->
+          <g class="mascot-brows">
+            <path class="brow-left" d="M52 68 Q60 64 66 68" stroke="#3a1a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path class="brow-right" d="M74 68 Q80 64 88 68" stroke="#3a1a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </g>
+          <g class="mascot-eyes">
+            <circle cx="60" cy="76" r="4" fill="#3a1a08" class="eye-left"/>
+            <circle cx="80" cy="76" r="4" fill="#3a1a08" class="eye-right"/>
+            <circle cx="61" cy="75" r="1.5" fill="#fff"/>
+            <circle cx="81" cy="75" r="1.5" fill="#fff"/>
+          </g>
+          <!-- Râu dê nhỏ dưới cằm -->
+          <g class="mascot-beard">
+            <path d="M64 96 Q66 104 70 106 Q74 104 76 96" fill="#FFF5E1" stroke="#FFD9A0" stroke-width="1.2"/>
+            <path d="M66 98 L65 105 M70 100 L70 107 M74 98 L75 105" stroke="#FFD9A0" stroke-width="1" stroke-linecap="round"/>
+          </g>
+          <g class="mascot-mouth">
+            <path class="mascot-mouth-closed" d="M62 90 Q70 94 78 90" stroke="#3a1a08" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse class="mascot-mouth-open" cx="70" cy="92" rx="6" ry="4" fill="#3a1a08"/>
+          </g>
+        </g>
+      </svg>
+    </div>
   </div>
 
+  <script src="/vendor/matter.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/audio.js"></script>
+  <script src="/js/mascot.js"></script>
   <script src="/js/tv.js"></script>
 </body>
 </html>
