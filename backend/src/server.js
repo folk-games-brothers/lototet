@@ -756,6 +756,7 @@ function doDraw(manualNumber, onDone, durationOverride) {
   io.emit('draw:rolling', {
     duration, min: cfg.minNumber, max: cfg.maxNumber,
     mode: manual ? 'manual' : 'physics', drawn: game.drawn.slice(),
+    gameId: game.id, // TV trả lại gameId khi gửi draw:physics-result để chặn kết quả cũ.
   });
 
   if (manual) {

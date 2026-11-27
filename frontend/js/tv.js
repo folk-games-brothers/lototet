@@ -124,6 +124,15 @@ const Physics = (() => {
   let airUntil = 0;
   let gateOpenAt = 0;
   let rolling = false;
+  // Trạng thái quay: chỉ bật gió/đảo bi khi isSpinning === true.
+  let isSpinning = false;
+  let spinEndTime = 0;          // Date.now() + spinDuration, auto-stop trong beforeUpdate
+  let spinDuration = 3800;      // mặc định 3.5 - 4 giây / lượt
+  let spinDecelUntil = 0;       // giảm tốc vòng quay về 0 trong 1 giây
+  let brakeUntil = 0;           // tăng frictionAir trong 1.5 giây rồi trả lại
+  let spinTimer = null;
+  let brakeTimer = null;
+  let gateFallbackTimer = null;
   let resultSent = false;
   let currentGameId = '';
   let dpr = 1, scale = 1, offX = 0, offY = 0;
@@ -164,8 +173,8 @@ const Physics = (() => {
 
   function makeBall(number, x, y) {
     return Bodies.circle(x, y, BALL_R, {
-      label: 'ball', restitution: 0.85, friction: 0.002,
-      frictionStatic: 0.004, frictionAir: 0.004, density: 0.001,
+      label: 'ball', restitution: 0.65, friction: 0.05,
+      frictionStatic: 0.05, frictionAir: 0.015, density: 0.001,
       plugin: { number, catchable: false },
     });
   }
@@ -295,12 +304,15 @@ const Physics = (() => {
 
   // Chỉ chạy vật lý khi đang quay, bi đang đi trong ống, hoặc vừa xong để bi kịp ổn định.
   function physicsActive() {
-    return rolling || !!rollingBall || settleUntil > performance.now();
+    const now = performance.now();
+    return rolling || !!rollingBall || isSpinning
+      || settleUntil > now || spinDecelUntil > now || brakeUntil > now;
   }
   function ensureEngine() {
     if (engine) return;
     engine = Engine.create({ positionIterations: 4, velocityIterations: 3, constraintIterations: 2, enableSleeping: true });
-    engine.gravity.y = 1;
+    engine.gravity.x = 0;
+    engine.gravity.y = 1.2;   // trọng lực kéo bi xuống nửa dưới đáy lồng khi đứng yên
     engine.gravity.scale = 0.001;
 
     walls = makeCageWalls().concat(makeTubeWalls());
@@ -323,10 +335,44 @@ const Physics = (() => {
     window.addEventListener('resize', resize);
   }
 
-  /* ---------------- Lực thổi + đảo bi ---------------- */
+  /* ---------------- Điều khiển quay / gió / hãm ---------------- */
+  function clearSpinTimers() {
+    clearTimeout(spinTimer); spinTimer = null;
+    clearTimeout(brakeTimer); brakeTimer = null;
+    clearTimeout(gateFallbackTimer); gateFallbackTimer = null;
+    isSpinning = false;
+    spinEndTime = 0;
+    spinDecelUntil = 0;
+    brakeUntil = 0;
+    airUntil = 0;
+  }
+  // Dừng quay: ngắt gió NGAY, giảm tốc lồng cầu về 0 trong 1s,
+  // tăng frictionAir lên 0.06 trong 1.5s để bi lắng xuống rồi trả về 0.015.
+  function stopSpin() {
+    if (!isSpinning && !spinEndTime) return;
+    const now = performance.now();
+    isSpinning = false;
+    spinEndTime = 0;
+    airUntil = 0;
+    spinDecelUntil = now + 1000;
+    brakeUntil = now + 1500;
+    balls.forEach((ball) => {
+      ball.frictionAir = 0.06;
+      if (Sleeping && Sleeping.set) Sleeping.set(ball, false);
+    });
+    clearTimeout(spinTimer); spinTimer = null;
+    clearTimeout(brakeTimer);
+    brakeTimer = setTimeout(() => {
+      brakeTimer = null;
+      balls.forEach((ball) => { ball.frictionAir = 0.015; });
+    }, 1500);
+  }
   function applyForces() {
     if (!physicsActive()) return;
     const now = performance.now();
+    // Tự ngắt theo thời gian ngay trong vòng lặp beforeUpdate.
+    if (isSpinning && spinEndTime && Date.now() >= spinEndTime) stopSpin();
+
     if (gateOpenAt && rolling && !resultSent && engine.timing.timestamp >= gateOpenAt) {
       gateOpenAt = 0;
       Body.setPosition(gate, { x: GATE_OPEN.x, y: GATE_OPEN.y });
@@ -337,25 +383,30 @@ const Physics = (() => {
       }
       emitBall(best);
     }
+
+    // Idle / đang hãm: KHÔNG có gió hay lực đẩy lên. Trọng lực (y = 1.2) tự kéo
+    // 90 bi xuống đáy lồng; frictionAir 0.06 hãm đà rồi trả về 0.015.
+    if (!isSpinning) return;
+
     for (const ball of balls.values()) {
-      if (airUntil > now) {
-        const dx = ball.position.x - CAGE.x;
-        const dy = ball.position.y - CAGE.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        const bottom = Math.max(0, (dy + CAGE.r) / (2 * CAGE.r));
-        // Đảo hỗn loạn: đẩy lên từ đáy + nhiễu loạn xoáy + kéo vào tâm.
-        const lift = ball.mass * (0.0012 + 0.0011 * bottom);
-        const swirl = ball.mass * (0.0016 * Math.sin(now / 150 + dy / 26) + (Math.random() - 0.5) * 0.0012);
-        const inward = dist > CAGE.r * 0.92 ? ball.mass * 0.0004 : 0;
-        const nearGap = Math.abs(dx) < 26 && dy < -CAGE.r + 46;
-        const jet = nearGap ? ball.mass * 0.0042 : 0;
-        Body.applyForce(ball, ball.position, {
-          x: swirl - inward * dx / dist - (nearGap ? dx * 0.00016 * ball.mass : 0),
-          y: -lift - jet - inward * dy / dist,
-        });
-        const speed = Math.hypot(ball.velocity.x, ball.velocity.y);
-        if (speed > 3) Body.setVelocity(ball, { x: ball.velocity.x * 3 / speed, y: ball.velocity.y * 3 / speed });
-      }
+      const dx = ball.position.x - CAGE.x;
+      const dy = ball.position.y - CAGE.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      // 0 ở đáy lồng, 1 ở đỉnh: giảm dần lực khi bi tiến sát nóc để không ép dính trần.
+      const fromBottom = Math.max(0, Math.min(1, (CAGE.y + CAGE.r - ball.position.y) / (2 * CAGE.r)));
+      const topFade = Math.max(0.05, 1 - Math.pow(fromBottom, 2.2));
+      const lift = ball.mass * 0.0011 * topFade;
+      const swirl = ball.mass * (0.0010 * Math.sin(now / 170 + dy / 28)
+        + (Math.random() - 0.5) * 0.0005) * topFade;
+      const inward = dist > CAGE.r * 0.9 ? ball.mass * 0.0003 * topFade : 0;
+      const nearGap = Math.abs(dx) < 26 && dy < -CAGE.r + 46;
+      const jet = nearGap ? ball.mass * 0.0015 * topFade : 0;
+      Body.applyForce(ball, ball.position, {
+        x: swirl - inward * dx / dist - (nearGap ? dx * 0.00014 * ball.mass * topFade : 0),
+        y: -lift - jet - inward * dy / dist,
+      });
+      const speed = Math.hypot(ball.velocity.x, ball.velocity.y);
+      if (speed > 2.4) Body.setVelocity(ball, { x: ball.velocity.x * 2.4 / speed, y: ball.velocity.y * 2.4 / speed });
     }
   }
 
@@ -394,7 +445,10 @@ const Physics = (() => {
   }
 
   function updateAnimations(dt) {
-    if (rolling) fanAngle += 0.34;
+    if (isSpinning) fanAngle += 0.34;
+    else if (spinDecelUntil > performance.now()) {
+      fanAngle += 0.34 * Math.max(0, (spinDecelUntil - performance.now()) / 1000);
+    }
     if (!rollingBall) return;
     rollingBall.t += dt;
     const k = Math.min(1, rollingBall.t / ROLL_MS);
@@ -758,11 +812,38 @@ const Physics = (() => {
   }
 
   return {
+    // Chỉ đọc: dùng để kiểm tra trạng thái lồng cầu (idle/spin) từ console.
+    snapshot() {
+      const ys = [...balls.values()].map((b) => b.position.y);
+      return {
+        isSpinning, count: ys.length,
+        belowCenter: ys.filter((y) => y > CAGE.y).length,
+        avgY: ys.length ? Math.round(ys.reduce((a, b) => a + b, 0) / ys.length) : 0,
+        gravityY: engine ? engine.gravity.y : null,
+        engineTime: engine ? Math.round(engine.timing.timestamp) : null,
+        settleActive: settleUntil > performance.now(),
+        frictionAir: balls.size ? balls.values().next().value.frictionAir : null,
+        spinEndTime,
+      };
+    },
+    // Cho phép kiểm tra vật lý trong môi trường timer bị throttle (Safari automation).
+    step(ms = 1000 / 60) {
+      if (!engine) return;
+      Engine.update(engine, ms);
+      updateAnimations(ms);
+      draw();
+    },
     ensure(min, max, drawn, gameId) {
       ensureEngine();
       currentGameId = gameId || '';
       const key = `${min}:${max}`;
-      if (key !== rangeKey) { rangeKey = key; clearBalls(); addBalls(min, max, drawn || []); }
+      if (key !== rangeKey) {
+        rangeKey = key;
+        clearBalls();
+        addBalls(min, max, drawn || []);
+        // Bi rơi tự do xuống đáy lồng khi khởi tạo (không có bất kỳ lực thổi nào).
+        settleUntil = performance.now() + 2500;
+      }
       syncSlots(drawn);
       resize();
       draw();
@@ -774,13 +855,21 @@ const Physics = (() => {
       if (key !== rangeKey) { rangeKey = key; clearBalls(); addBalls(min, max, []); }
       // Khớp nhịp quay với cài đặt "Thời gian quay (giây)" của Admin.
       const rollMs = Math.max(1200, Math.min(8000, Number(durationMs) || 3000));
+      // Dọn mọi timer quay cũ trước khi bắt đầu lượt mới (tránh chồng lặp vĩnh viễn).
+      clearSpinTimers();
+      balls.forEach((ball) => { ball.frictionAir = 0.015; });
       ROLL_MS = Math.round(rollMs * 0.78);
+      spinDuration = Math.max(3500, Math.min(4000, Number(durationMs) || 3800));
+      spinEndTime = Date.now() + spinDuration;
       rolling = true;
+      isSpinning = true;
       resultSent = false;
       settleUntil = 0;
       // Sleeping cần được đánh thức khi bật quạt trở lại.
       if (Sleeping && Sleeping.set) balls.forEach((ball) => Sleeping.set(ball, false));
-      airUntil = Number.POSITIVE_INFINITY;
+      airUntil = spinEndTime;
+      // Safety net: vẫn dừng ngay cả khi beforeUpdate bị tạm dừng bởi tab ẩn.
+      spinTimer = setTimeout(() => { if (isSpinning) stopSpin(); }, spinDuration);
       Body.setPosition(gate, { x: GATE_CLOSED.x, y: GATE_CLOSED.y });
       // Cổ ống chỉ mở sau khi chú Dê Lửa hát xong vè (hoặc fallback timeout).
       gateOpenAt = 0;
@@ -788,30 +877,38 @@ const Physics = (() => {
       LotoAudio.startFan(rollMs);
       LotoAudio.startClacks(rollMs);
       if (window.LotoMascot && typeof window.LotoMascot.onDrawStart === 'function') {
-        root.LotoMascot.onDrawStart(rollMs, () => {
+        window.LotoMascot.onDrawStart(rollMs, () => {
           if (rolling && !resultSent) gateOpenAt = engine.timing.timestamp + 100;
         });
       } else {
         gateOpenAt = engine.timing.timestamp + Math.min(rollMs * 0.9, 2700);
       }
+      // Gió luôn có đường thoát: nếu mascot không gọi lại, vẫn mở cổ trong lượt quay.
+      gateFallbackTimer = setTimeout(() => {
+        if (rolling && !resultSent && !gateOpenAt) gateOpenAt = engine.timing.timestamp + 100;
+      }, Math.min(spinDuration * 0.7, 2600));
     },
+    // Server vừa công bố số mới -> ngắt gió ngay lập tức.
+    stopOnResult() { stopSpin(); },
     cancel() {
+      clearSpinTimers();
       rolling = false;
       resultSent = false;
       settleUntil = 0;
-      airUntil = 0;
       LotoAudio.stopAll();
+      balls.forEach((ball) => { ball.frictionAir = 0.015; });
       if (rollingBall) { Composite.remove(engine.world, rollingBall.ball); rollingBall = null; }
       if (gate) Body.setPosition(gate, { x: GATE_CLOSED.x, y: GATE_CLOSED.y });
     },
     reset(min, max) {
       ensureEngine();
       rangeKey = '';
+      this.cancel();
       clearBalls();
       addBalls(min || 1, max || 90, []);
       slotCount = SLOTS.minCount;
       slotBalls = emptySlots(slotCount);
-      this.cancel();
+      settleUntil = performance.now() + 2500;
       resize();
       draw();
     },
@@ -1076,6 +1173,8 @@ socket.on('draw:rolling', ({ min, max, mode, duration, gameId } = {}) => {
   }
 });
 socket.on('draw:result', ({ number } = {}) => {
+  // Công bố số từ server là mốc dừng dứt khoát: tắt gió, bắt đầu hãm ngay.
+  Physics.stopOnResult();
   // Bóng vật lý đã tự lăn qua ống vào ngăn xếp trên canvas ->
   // bật số vừa xổ với hiệu ứng ngay khoảnh khắc này.
   if (number !== undefined && number !== null) {

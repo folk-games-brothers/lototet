@@ -432,6 +432,24 @@ test('performance: physics idle pause, cheap ball sprites, throttled audio, time
   assert.match(tv, /if \(!physicsActive\(\)\) return;/);
   assert.match(tv, /settleUntil = performance\.now\(\) \+ 900/);
 
+  // Idle: trọng lực y=1.2 / x=0, KHÔNG thổi gió; bi rơi xuống đáy lồng.
+  assert.match(tv, /engine\.gravity\.x = 0/);
+  assert.match(tv, /engine\.gravity\.y = 1\.2/);
+  assert.match(tv, /settleUntil = performance\.now\(\) \+ 2500/);
+  assert.match(tv, /if \(!isSpinning\) return;/);
+  // Auto-stop trong beforeUpdate + mốc dừng ngay khi server công bố số.
+  assert.match(tv, /spinEndTime = Date\.now\(\) \+ spinDuration/);
+  assert.match(tv, /if \(isSpinning && spinEndTime && Date\.now\(\) >= spinEndTime\) stopSpin\(\)/);
+  assert.match(tv, /Physics\.stopOnResult\(\)/);
+  assert.match(tv, /clearSpinTimers\(\);[\s\S]{0,400}spinEndTime = Date\.now\(\)/);
+  // Giảm tốc 1s, hãm frictionAir 0.06 trong 1.5s rồi trả về 0.015.
+  assert.match(tv, /spinDecelUntil = now \+ 1000/);
+  assert.match(tv, /brakeUntil = now \+ 1500/);
+  assert.match(tv, /ball\.frictionAir = 0\.06/);
+  assert.match(tv, /ball\.frictionAir = 0\.015/);
+  // Lực thổi suy giảm khi bi tiến sát đỉnh lồng (topFade).
+  assert.match(tv, /const topFade = Math\.max\(0\.05, 1 - Math\.pow\(fromBottom, 2\.2\)\)/);
+
   // 90 bóng được vẽ sẵn vào offscreen canvas, chỉ drawImage mỗi frame.
   assert.match(tv, /const ballNumberSprites = new Map\(\)/);
   assert.match(tv, /ensureNumberSprite\(number\)/);
@@ -803,8 +821,9 @@ test('TV cage uses real Matter.js rigid-body physics, not random number arrays',
   // Góc xoay lấy từ pool đã shuffle, KHÔNG gọi Math.random() riêng cho từng viên.
   assert.match(script, /const angles = shuffled\(/);
   assert.doesNotMatch(script, /Body\.setAngle\(ball, Math\.random\(\)/);
-  assert.match(script, /restitution:\s*0\.85/);
-  assert.match(script, /friction:\s*0\.00[0-9]/);
+  // Bóng nảy vừa phải, ma sát đủ cao để không tích lũy động năng vô hạn.
+  assert.match(script, /label: 'ball', restitution: 0\.65, friction: 0\.05/);
+  assert.match(script, /frictionAir: 0\.015/);
 
   // Gate opens by engine time; nearest ball to the gap is reported (no random array).
   assert.match(script, /gateOpenAt/);
@@ -860,6 +879,8 @@ test('TV cage uses real Matter.js rigid-body physics, not random number arrays',
   // The server no longer picks a random number from an array for a draw.
   assert.doesNotMatch(server, /available\[Math\.floor\(Math\.random\(\)\s*\*\s*available\.length\)\]/);
   assert.match(server, /socket\.on\('draw:physics-result'/);
+  // Server gửi gameId trong draw:rolling để TV trả lại, chặn kết quả của ván cũ.
+  assert.match(server, /gameId: game\.id/);
 });
 
 test('Vietnamese announcer pronounces numbers and uses varied playful callouts', () => {
